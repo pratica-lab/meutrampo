@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react"
 import { initializeApp } from "firebase/app"
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth"
@@ -54,6 +53,34 @@ const isPast = (d) => d && d < todayStr()
 const checkIsToday = (t) => (t.myDay || t.plannedDate === todayStr() || (t.plannedDate && t.plannedDate < todayStr()) || t.deadline === todayStr());
 const checkIsTomorrow = (t) => (!checkIsToday(t) && (t.plannedDate === tomorrowStr() || t.deadline === tomorrowStr()));
 
+// Funções de tempo para o Ponto
+const parseTime = (str) => {
+  if (!str) return 0;
+  const [h, m] = str.split(':').map(Number);
+  return (h * 60) + m;
+}
+
+// ATUALIZADO: Agora aplica % 24 para garantir formato 24h caso o tempo calculado ultrapasse 24h
+const formatTimeMins = (mins) => {
+  if (mins < 0) return "--:--";
+  const h = Math.floor(mins / 60) % 24; 
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+const formatBalance = (mins) => {
+  const sign = mins < 0 ? '-' : '+';
+  const abs = Math.abs(mins);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return `${sign}${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+const isWeekend = (dateStr) => {
+  const d = new Date(dateStr + "T12:00:00");
+  return d.getDay() === 0 || d.getDay() === 6; // 0 = Dom, 6 = Sáb
+}
+
 // ─── 2. Hooks de Sistema & Firebase Sync ──────────────────────────────────────
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
@@ -85,7 +112,6 @@ function useAppAssets() {
   }, [])
 }
 
-// Custom hook para sincronizar automaticamente os estados locais com o Firestore
 function useSyncedState(collectionName, initialData, user) {
   const [state, setState] = useState(initialData);
   const [loaded, setLoaded] = useState(false);
@@ -180,19 +206,20 @@ function MiniPomoHeader({ pomo }) {
 // ─── 4. Constantes e Dados Iniciais ───────────────────────────────────────────
 const MODULES = [
   { id: "teams",        label: "Equipes",      fullLabel: "Gestão de Equipes",  icon: "👥", color: "#ef4444" },
-  { id: "tasks",        label: "Tarefas",      fullLabel: "Minhas Tarefas",      icon: "✅", color: "#f97316" },
-  { id: "productivity", label: "Foco",         fullLabel: "Produtividade",        icon: "⚡", color: "#22c55e" },
-  { id: "indicators",   label: "Indicadores",  fullLabel: "Indicadores",          icon: "📊", color: "#3b82f6" },
-  { id: "notes",        label: "Notas",        fullLabel: "Notas",                icon: "📝", color: "#a855f7" },
+  { id: "tasks",        label: "Tarefas",      fullLabel: "Minhas Tarefas",     icon: "✅", color: "#f97316" },
+  { id: "productivity", label: "Foco",         fullLabel: "Produtividade",      icon: "⚡", color: "#22c55e" },
+  { id: "timeclock",    label: "Ponto",        fullLabel: "Controle de Ponto",  icon: "⏱️", color: "#14b8a6" },
+  { id: "indicators",   label: "Indicadores",  fullLabel: "Indicadores",        icon: "📊", color: "#3b82f6" },
+  { id: "notes",        label: "Notas",        fullLabel: "Notas",              icon: "📝", color: "#a855f7" },
 ]
 
 const PRIORITY_COLORS = { Urgente: "#ef4444", Alta: "#f97316", Média: "#eab308", Baixa: "#22c55e", Baixíssima: "#6b7280" }
 
 const TRIAGE_OPTIONS = [
-  { id: "delegate", label: "Delegar",              icon: "👥", color: "#3b82f6" },
-  { id: "meeting",  label: "Pauta Reunião",        icon: "📅", color: "#a855f7" },
-  { id: "register", label: "Registrar",            icon: "📋", color: "#6b7280" },
-  { id: "urgent",   label: "Resolver Hoje",        icon: "🔥", color: "#ef4444" },
+  { id: "delegate", label: "Delegar",           icon: "👥", color: "#3b82f6" },
+  { id: "meeting",  label: "Pauta Reunião",     icon: "📅", color: "#a855f7" },
+  { id: "register", label: "Registrar",         icon: "📋", color: "#6b7280" },
+  { id: "urgent",   label: "Resolver Hoje",     icon: "🔥", color: "#ef4444" },
 ]
 
 const C = {
@@ -213,20 +240,10 @@ const INIT_TEAMS = [{
   rts:      [{ id: 1, name: "RT 05 - Open Finance", startDate: "2026-05-01", endDate: "2026-06-30", features: [] }]
 }]
 
-const INIT_TASKS = [
-  { id: 1, title: "Revisar especificação técnica", subtasks: [], notes: "Focar nos endpoints /auth e /revoke", deadline: todayStr(), priority: "Alta", delegable: false, tags: ["API"], status: "todo", myDay: true, plannedDate: "", dueDate: todayStr() },
-]
-
-const INIT_INDICATORS = [
-  { id: 1, name: "Tarefas concluídas no mês",     category: "Pessoal",     value: 12, target: 20,  unit: "tasks", history: [] },
-]
-
-const INIT_NOTES = {
-  meetings:   [{ id: 1, title: "Sprint Planning", date: "28/04/2026", tags: ["planning"], content: "Comprometimento de 34 pontos." }],
-  feedbacks:  [{ id: 1, title: "Avaliação Trimestral", person: "João Silva", type: "Dado", date: "29/04/2026", tags: ["avaliação"], content: "Feedback estruturado sobre evolução." }],
-  changes:    [],
-  others:     [{ id: 1, title: "Ideias para o App", tags: ["brainstorm"], date: "29/04/2026", content: "Implementar modo escuro e novos módulos." }],
-}
+const INIT_TASKS = []
+const INIT_INDICATORS = []
+const INIT_NOTES = { meetings: [], feedbacks: [], changes: [], others: [] }
+const INIT_TIMESHEET = { days: {}, adjustments: [] }
 
 // ─── Componente LoginScreen ───────────────────────────────────────────────────
 function LoginScreen({ onLoginGoogle, onLoginAnon, onLoginEmail, onRegisterEmail, error }) {
@@ -583,7 +600,7 @@ function TeamsModule({ teams, setTeams, isMobile }) {
               </div>
               
               {filteredItems.length === 0
-                ? <p style={{ color: "#4b5563", fontSize: 13, textAlign: "center", padding: "20px 0" }}>{itemSearch ? "Nenresultado." : "Nenhum item adicionado."}</p>
+                ? <p style={{ color: "#4b5563", fontSize: 13, textAlign: "center", padding: "20px 0" }}>{itemSearch ? "Nenhum resultado." : "Nenhum item adicionado."}</p>
                 : filteredItems.map(item => (
                   <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 0", borderBottom: "1px solid #1e2130" }}>
                     
@@ -1221,7 +1238,7 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
                   )
               })
             }
-          </div>
+           </div>
         </div>
 
         {/* Right Column: Alerts & Calendar */}
@@ -1256,6 +1273,433 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
 
           <MiniCal />
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── 7.5. Módulo Controlador de Ponto ─────────────────────────────────────────
+function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
+  const color = "#14b8a6";
+  const [nowDate, setNowDate] = useState(new Date());
+
+  // Atualiza o relógio em tempo real a cada 1 segundo (e recalcula o tempo)
+  useEffect(() => {
+    const t = setInterval(() => setNowDate(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const [retroForm, setRetroForm] = useState({ date: todayStr(), time: "" });
+  const [adjForm, setAdjForm] = useState({ date: todayStr(), hours: "", minutes: "", type: "subtract", obs: "" });
+  const [showAdj, setShowAdj] = useState(false);
+  
+  // ATUALIZADO: Estado e Toggle para o formulário de ausências (Férias/Feriados)
+  const [absenceForm, setAbsenceForm] = useState({ startDate: todayStr(), endDate: todayStr(), type: "Férias", description: "" });
+  const [showAbsenceForm, setShowAbsenceForm] = useState(false);
+
+  // ATUALIZADO: Novo estado para gerenciar o mês selecionado no histórico
+  const [selectedMonth, setSelectedMonth] = useState(() => todayStr().substring(0, 7));
+
+  // Core Calc Function
+  const calcDay = (dateStr, punches, isHoliday) => {
+    let workedMins = 0;
+    let expectedEnd = null;
+    let isRunning = punches.length % 2 !== 0;
+
+    for (let i = 0; i < punches.length; i += 2) {
+      let start = parseTime(punches[i]);
+      let end = punches[i+1] ? parseTime(punches[i+1]) : null;
+      if (end !== null) {
+        workedMins += (end - start);
+      } else if (dateStr === todayStr()) {
+        let nowMins = nowDate.getHours() * 60 + nowDate.getMinutes();
+        workedMins += (nowMins - start);
+      }
+    }
+
+    // Dias no futuro (que ainda não chegaram) recebem meta de 0h
+    // para que não gerem um falso saldo negativo antecipado no banco geral.
+    let reqMins = (isWeekend(dateStr) || isHoliday || dateStr > todayStr()) ? 0 : 480; // 8 horas
+    let balance = workedMins - reqMins;
+
+    if (isRunning && reqMins > 0) {
+      let lastStart = parseTime(punches[punches.length - 1]);
+      let fixedWorked = 0;
+      for (let i = 0; i < punches.length - 1; i += 2) {
+        fixedWorked += (parseTime(punches[i+1]) - parseTime(punches[i]));
+      }
+      let remaining = reqMins - fixedWorked;
+      if (remaining > 0) {
+        expectedEnd = lastStart + remaining;
+      }
+    }
+    return { workedMins, balance, expectedEnd, isRunning, reqMins };
+  }
+
+  const punchCurrent = () => {
+    const d = todayStr();
+    const h = String(nowDate.getHours()).padStart(2, '0');
+    const m = String(nowDate.getMinutes()).padStart(2, '0');
+    addPunch(d, `${h}:${m}`);
+  }
+
+  const addPunch = (date, time) => {
+    if (!time) return;
+    setTimesheet(prev => {
+      const day = prev.days[date] || { punches: [], isHoliday: false, obs: "" };
+      const newPunches = [...day.punches, time].sort();
+      return { ...prev, days: { ...prev.days, [date]: { ...day, punches: newPunches } } };
+    });
+    setRetroForm({ date: todayStr(), time: "" });
+  }
+
+  const removePunch = (date, idx) => {
+    setTimesheet(prev => {
+      const day = prev.days[date];
+      const newPunches = day.punches.filter((_, i) => i !== idx);
+      return { ...prev, days: { ...prev.days, [date]: { ...day, punches: newPunches } } };
+    });
+  }
+
+  const toggleHoliday = (date) => {
+    setTimesheet(prev => {
+      const day = prev.days[date] || { punches: [], isHoliday: false, obs: "" };
+      return { ...prev, days: { ...prev.days, [date]: { ...day, isHoliday: !day.isHoliday } } };
+    });
+  }
+
+  const updateDayObs = (date, obs) => {
+    setTimesheet(prev => {
+        const day = prev.days[date] || { punches: [], isHoliday: false, obs: "" };
+        return { ...prev, days: { ...prev.days, [date]: { ...day, obs } } };
+    });
+  }
+
+  const addAbsences = () => {
+    if (!absenceForm.startDate || !absenceForm.endDate) return;
+    let current = new Date(absenceForm.startDate + "T12:00:00");
+    const end = new Date(absenceForm.endDate + "T12:00:00");
+
+    if (current > end) return; 
+
+    setTimesheet(prev => {
+        const newDays = { ...prev.days };
+        let loopDate = new Date(current);
+        
+        while (loopDate <= end) {
+            const dateStr = loopDate.toISOString().split("T")[0];
+            const existingDay = newDays[dateStr] || { punches: [], isHoliday: false, obs: "" };
+            
+            newDays[dateStr] = {
+                ...existingDay,
+                isHoliday: true, 
+                obs: existingDay.obs ? `${existingDay.obs}\n${absenceForm.type}: ${absenceForm.description}` : `${absenceForm.type}${absenceForm.description ? ' - ' + absenceForm.description : ''}`
+            };
+            loopDate.setDate(loopDate.getDate() + 1);
+        }
+        return { ...prev, days: newDays };
+    });
+    setAbsenceForm({ startDate: todayStr(), endDate: todayStr(), type: "Férias", description: "" });
+    setShowAbsenceForm(false);
+  }
+
+  const saveAdjustment = () => {
+    const h = parseInt(adjForm.hours || "0", 10);
+    const m = parseInt(adjForm.minutes || "0", 10);
+    if (h === 0 && m === 0) return;
+    
+    let totalMins = (h * 60) + m;
+    if (adjForm.type === "subtract") totalMins = -totalMins;
+
+    const newAdj = { id: Date.now(), date: adjForm.date, minutes: totalMins, obs: adjForm.obs };
+    setTimesheet(prev => ({ ...prev, adjustments: [newAdj, ...(prev.adjustments || [])] }));
+    setAdjForm({ date: todayStr(), hours: "", minutes: "", type: "subtract", obs: "" });
+    setShowAdj(false);
+  }
+
+  const removeAdjustment = (id) => {
+    setTimesheet(prev => ({ ...prev, adjustments: prev.adjustments.filter(a => a.id !== id) }));
+  }
+
+  // ATUALIZADO: Cálculo do Saldo Global e identificação de Meses Únicos
+  let globalBalance = 0;
+  const allDatesSet = new Set([todayStr().substring(0, 7)]); // Assegura que o mês atual sempre apareça
+  
+  Object.keys(timesheet.days).forEach(date => {
+    const day = timesheet.days[date];
+    const calc = calcDay(date, day.punches, day.isHoliday);
+    globalBalance += calc.balance;
+    allDatesSet.add(date.substring(0, 7));
+  });
+  
+  (timesheet.adjustments || []).forEach(adj => {
+    globalBalance += adj.minutes;
+    allDatesSet.add(adj.date.substring(0, 7));
+  });
+
+  const uniqueMonths = [...allDatesSet].sort((a,b) => b.localeCompare(a));
+
+  // ATUALIZADO: Cálculos específicos para o Mês Selecionado (Saldo Inicial e Saldo Final)
+  let initialMonthBalance = 0;
+  let currentMonthNetBalance = 0;
+
+  Object.keys(timesheet.days).forEach(date => {
+    const calc = calcDay(date, timesheet.days[date].punches, timesheet.days[date].isHoliday);
+    const mStr = date.substring(0, 7);
+    if (date < selectedMonth + "-01") initialMonthBalance += calc.balance;
+    else if (mStr === selectedMonth) currentMonthNetBalance += calc.balance;
+  });
+
+  (timesheet.adjustments || []).forEach(adj => {
+    const mStr = adj.date.substring(0, 7);
+    if (adj.date < selectedMonth + "-01") initialMonthBalance += adj.minutes;
+    else if (mStr === selectedMonth) currentMonthNetBalance += adj.minutes;
+  });
+
+  const finalMonthBalance = initialMonthBalance + currentMonthNetBalance;
+
+  // Filtro dos dias para o mês selecionado
+  const daysInMonth = Object.keys(timesheet.days)
+    .filter(date => date.startsWith(selectedMonth))
+    .sort((a,b) => b.localeCompare(a));
+
+  const todayData = timesheet.days[todayStr()] || { punches: [], isHoliday: false, obs: "" };
+  const todayCalc = calcDay(todayStr(), todayData.punches, todayData.isHoliday);
+
+  return (
+    <div>
+      <ModuleHeader title="Controle de Ponto" subtitle="Registro de horas, saldo e previsão de saída" color={color} isMobile={isMobile} />
+
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        
+        {/* Card Hoje / Bater Ponto */}
+        <div style={{ ...C.card, borderTop: `4px solid ${color}`, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+           <h3 style={{ margin: "0 0 5px", fontSize: 14, color: "#9ca3af" }}>{nowDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+           <div style={{ fontSize: 48, fontWeight: 800, fontFamily: "'Syne', sans-serif", color: "#fff", lineHeight: 1, marginBottom: 20, fontVariantNumeric: "tabular-nums" }}>
+             {String(nowDate.getHours()).padStart(2, '0')}:{String(nowDate.getMinutes()).padStart(2, '0')}<span style={{ fontSize: 24, color: "#6b7280" }}>:{String(nowDate.getSeconds()).padStart(2, '0')}</span>
+           </div>
+
+           <button onClick={punchCurrent} style={{ background: todayCalc.isRunning ? "#ef4444" : color, color: "#fff", border: "none", borderRadius: 30, padding: "16px 32px", fontSize: 16, fontWeight: 800, cursor: "pointer", transition: "all 0.2s", boxShadow: `0 4px 14px ${todayCalc.isRunning ? '#ef444466' : color+'66'}`, marginBottom: 24 }}>
+             {todayCalc.isRunning ? "SAÍDA / PAUSA (Bater Ponto)" : "ENTRADA (Bater Ponto)"}
+           </button>
+
+           <div style={{ display: "flex", width: "100%", gap: 10, justifyContent: "space-between", background: "#0a0b0f", padding: 14, borderRadius: 10 }}>
+              <div>
+                 <p style={{ ...C.lbl, marginBottom: 2 }}>Trabalhado Hoje</p>
+                 <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: color }}>{formatTimeMins(todayCalc.workedMins)}</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                 <p style={{ ...C.lbl, marginBottom: 2 }}>Previsão de Saída (8h)</p>
+                 <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: todayCalc.expectedEnd ? "#e8eaf0" : "#6b7280" }}>
+                   {todayCalc.expectedEnd ? formatTimeMins(todayCalc.expectedEnd) : "--:--"}
+                 </p>
+              </div>
+           </div>
+        </div>
+
+        {/* Card Banco de Horas Geral */}
+        <div style={{ ...C.card, borderTop: `4px solid #3b82f6` }}>
+           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+             <p style={{ ...C.lbl, fontSize: 13 }}>Banco de Horas Geral</p>
+             <button onClick={() => setShowAdj(!showAdj)} style={{ ...C.btn("#3b82f6"), padding: "6px 12px", fontSize: 11 }}>+ Lançar Ajuste</button>
+           </div>
+           
+           <div style={{ fontSize: 38, fontWeight: 800, fontFamily: "'Syne', sans-serif", color: globalBalance >= 0 ? color : "#ef4444", marginBottom: 16 }}>
+             {formatBalance(globalBalance)} <span style={{ fontSize: 16, fontWeight: 600, color: "#9ca3af" }}>acumuladas</span>
+           </div>
+
+           {showAdj && (
+             <div style={{ background: "#0a0b0f", padding: 12, borderRadius: 8, marginBottom: 16, border: "1px solid #1e2130" }}>
+                <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 10px", color: "#e8eaf0" }}>Novo Lançamento Manual</p>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                   <input type="date" value={adjForm.date} onChange={e => setAdjForm({...adjForm, date: e.target.value})} style={{ ...C.input, flex: 1 }} />
+                   <select value={adjForm.type} onChange={e => setAdjForm({...adjForm, type: e.target.value})} style={{ ...C.input, flex: 1 }}>
+                     <option value="subtract">Debitar (-) Saída antecipada, Atraso...</option>
+                     <option value="add">Creditar (+) Hora extra por fora...</option>
+                   </select>
+                </div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                   <input type="number" placeholder="Horas" value={adjForm.hours} onChange={e => setAdjForm({...adjForm, hours: e.target.value})} style={{ ...C.input, width: 80 }} />
+                   <input type="number" placeholder="Min" value={adjForm.minutes} onChange={e => setAdjForm({...adjForm, minutes: e.target.value})} style={{ ...C.input, width: 80 }} />
+                   <input placeholder="Observação (obrigatória)" value={adjForm.obs} onChange={e => setAdjForm({...adjForm, obs: e.target.value})} style={{ ...C.input, flex: 1 }} />
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                   <button onClick={saveAdjustment} disabled={!adjForm.obs.trim()} style={{ ...C.btn("#3b82f6"), opacity: !adjForm.obs.trim() ? 0.5 : 1 }}>Salvar Ajuste</button>
+                   <button onClick={() => setShowAdj(false)} style={C.btn("transparent")}>Cancelar</button>
+                </div>
+             </div>
+           )}
+
+           <div>
+              <p style={{ ...C.lbl, fontSize: 10, borderBottom: "1px solid #1e2130", paddingBottom: 6, marginBottom: 8 }}>Histórico de Ajustes Manuais</p>
+              {(timesheet.adjustments || []).length === 0 ? (
+                <p style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>Nenhum ajuste manual lançado.</p>
+              ) : (
+                <div style={{ maxHeight: 110, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+                  {(timesheet.adjustments || []).map(adj => (
+                    <div key={adj.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0a0b0f", padding: "6px 10px", borderRadius: 6 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 2 }}>
+                           <span style={{ fontSize: 12, fontWeight: 700, color: adj.minutes >= 0 ? color : "#ef4444" }}>{formatBalance(adj.minutes)}</span>
+                           <span style={{ fontSize: 10, color: "#9ca3af" }}>{adj.date.split('-').reverse().join('/')}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 11, color: "#e8eaf0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{adj.obs}</p>
+                      </div>
+                      <button onClick={() => removeAdjustment(adj.id)} style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer", fontSize: 14 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+           </div>
+        </div>
+      </div>
+
+      {/* Histórico Diário (Agora com Filtro e Resumo Mensal) */}
+      <div style={C.card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+           <p style={{ ...C.lbl, fontSize: 13, margin: 0 }}>Histórico de Marcações</p>
+           
+           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+               <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#0a0b0f", padding: 6, borderRadius: 8, border: "1px solid #1e2130" }}>
+                  <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, paddingLeft: 4 }}>+ Retroativo:</span>
+                  <input type="date" value={retroForm.date} onChange={e => setRetroForm({...retroForm, date: e.target.value})} style={{ ...C.input, padding: "4px 8px", fontSize: 11, width: "auto" }} />
+                  <input type="time" value={retroForm.time} onChange={e => setRetroForm({...retroForm, time: e.target.value})} style={{ ...C.input, padding: "4px 8px", fontSize: 11, width: 90 }} />
+                  <button onClick={() => addPunch(retroForm.date, retroForm.time)} style={{ ...C.btn(color), padding: "4px 10px", fontSize: 11 }}>Add</button>
+               </div>
+               
+               <button onClick={() => setShowAbsenceForm(!showAbsenceForm)} style={{ ...C.btn(showAbsenceForm ? "#1e2130" : "#a855f7"), padding: "6px 12px", fontSize: 11 }}>
+                  ✈️ Planejar Ausência
+               </button>
+           </div>
+        </div>
+
+        {/* Formulário de Férias e Feriados em massa */}
+        {showAbsenceForm && (
+            <div style={{ background: "#0a0b0f", padding: 12, borderRadius: 8, border: "1px solid #a855f744", marginBottom: 16 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 10px", color: "#e8eaf0" }}>Planejar Ausências (Férias, Feriados, Licenças)</p>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                    <input type="date" value={absenceForm.startDate} onChange={e => setAbsenceForm({...absenceForm, startDate: e.target.value})} style={{ ...C.input, flex: 1, minWidth: 120 }} title="Data de Início" />
+                    <span style={{ color: "#6b7280", alignSelf: "center", fontSize: 12 }}>até</span>
+                    <input type="date" value={absenceForm.endDate} onChange={e => setAbsenceForm({...absenceForm, endDate: e.target.value})} style={{ ...C.input, flex: 1, minWidth: 120 }} title="Data de Fim" />
+                    <select value={absenceForm.type} onChange={e => setAbsenceForm({...absenceForm, type: e.target.value})} style={{ ...C.input, width: "auto" }}>
+                        <option value="Férias">Férias</option>
+                        <option value="Feriado">Feriado</option>
+                        <option value="Licença">Licença</option>
+                        <option value="Folga">Folga</option>
+                    </select>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                    <input placeholder="Descrição opcional..." value={absenceForm.description} onChange={e => setAbsenceForm({...absenceForm, description: e.target.value})} style={{ ...C.input, flex: 1 }} />
+                    <button onClick={addAbsences} style={{...C.btn("#a855f7"), padding: "8px 16px"}}>Salvar Período</button>
+                </div>
+            </div>
+        )}
+
+        {/* ATUALIZADO: VISUALIZAÇÃO MENSAL E SELETOR */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#12141a", border: "1px solid #1e2130", borderRadius: 8, padding: "12px 16px", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+           <div style={{ flex: 1, minWidth: 100 }}>
+              <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Saldo Inicial</p>
+              <p style={{ fontSize: 16, fontWeight: 800, color: initialMonthBalance >= 0 ? color : "#ef4444", margin: 0 }}>{formatBalance(initialMonthBalance)}</p>
+           </div>
+           
+           <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={{ ...C.input, width: "auto", flex: "1 1 150px", textAlign: "center", fontWeight: 700, fontSize: 14, background: "#0a0b0f" }}>
+              {uniqueMonths.map(m => {
+                 const [y, mo] = m.split("-");
+                 const dateObj = new Date(y, mo - 1, 1);
+                 const label = dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                 return <option key={m} value={m}>{label.charAt(0).toUpperCase() + label.slice(1)}</option>
+              })}
+           </select>
+
+           <div style={{ flex: 1, minWidth: 100, textAlign: "right" }}>
+              <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Saldo Final</p>
+              <p style={{ fontSize: 16, fontWeight: 800, color: finalMonthBalance >= 0 ? color : "#ef4444", margin: 0 }}>{formatBalance(finalMonthBalance)}</p>
+           </div>
+        </div>
+
+        {daysInMonth.length === 0 ? (
+          <p style={{ textAlign: "center", color: "#6b7280", padding: 30 }}>Nenhuma marcação registrada neste mês.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {daysInMonth.map(date => {
+               const dayObj = timesheet.days[date];
+               const calc = calcDay(date, dayObj.punches, dayObj.isHoliday);
+               const isFutureDay = date > todayStr();
+
+               return (
+                 <div key={date} style={{ background: "#0a0b0f", border: "1px solid #1e2130", borderRadius: 8, padding: 12, display: "flex", flexDirection: isMobile ? "column" : "row", gap: 16, alignItems: isMobile ? "stretch" : "flex-start" }}>
+                   
+                   {/* Date Block */}
+                   <div style={{ width: 100, flexShrink: 0 }}>
+                      <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: date === todayStr() ? color : (isFutureDay ? "#a855f7" : "#e8eaf0") }}>
+                        {date.split('-').reverse().join('/')}
+                      </p>
+                      <p style={{ margin: "0 0 6px", fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>
+                        {new Date(date+"T12:00:00").toLocaleDateString('pt-BR', { weekday: 'short' })}
+                        {isFutureDay && <span style={{ color: "#a855f7", display: "block", marginTop: 2 }}>(Previsão)</span>}
+                      </p>
+                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#9ca3af", cursor: "pointer" }}>
+                        <input type="checkbox" checked={dayObj.isHoliday} onChange={() => toggleHoliday(date)} /> Feriado
+                      </label>
+                   </div>
+
+                   {/* Punches & Observations Block */}
+                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                      {dayObj.punches.length === 0 ? (
+                        <span style={{ fontSize: 12, color: "#4b5563", fontStyle: "italic" }}>Sem marcações</span>
+                      ) : (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                          {dayObj.punches.map((p, idx) => (
+                             <div key={idx} style={{ display: "flex", alignItems: "center", background: "#1e2130", padding: "4px 8px", borderRadius: 6, gap: 6, border: `1px solid ${idx % 2 === 0 ? color+'44' : '#ef444444'}` }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: idx % 2 === 0 ? color : "#ef4444" }}>{p}</span>
+                                <button onClick={() => removePunch(date, idx)} style={{ background: "none", border: "none", color: "#6b7280", fontSize: 10, cursor: "pointer", padding: 0 }}>✕</button>
+                             </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {calc.isRunning && (
+                        <p style={{ fontSize: 11, color: "#ef4444", margin: "0", fontWeight: 600 }}>Ponto Aberto - Trabalhando agora...</p>
+                      )}
+
+                      <textarea
+                          placeholder="Comentários/Observações (ex: motivo de hora extra, atestado, folga, etc)..."
+                          value={dayObj.obs || ""}
+                          onChange={(e) => updateDayObs(date, e.target.value)}
+                          style={{
+                              ...C.input,
+                              minHeight: 40,
+                              fontSize: 11,
+                              resize: "vertical",
+                              background: "#12141a",
+                              padding: "6px 10px",
+                              border: "1px dashed #2a2f40",
+                              color: "#9ca3af"
+                          }}
+                      />
+                   </div>
+
+                   {/* Totals Block */}
+                   <div style={{ width: isMobile ? "100%" : 180, display: "flex", flexDirection: "column", gap: 6, borderLeft: isMobile ? "none" : "1px solid #1e2130", paddingTop: isMobile ? 10 : 0, paddingLeft: isMobile ? 0 : 16, borderTop: isMobile ? "1px solid #1e2130" : "none" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                         <span style={{ fontSize: 11, color: "#9ca3af" }}>Trabalhado:</span>
+                         <span style={{ fontSize: 12, fontWeight: 700 }}>{formatTimeMins(calc.workedMins)}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                         <span style={{ fontSize: 11, color: "#9ca3af" }}>Meta Diária:</span>
+                         <span style={{ fontSize: 12, fontWeight: 700 }}>{formatTimeMins(calc.reqMins)} {calc.reqMins === 0 && <span style={{fontSize:9, color:"#a855f7"}}>(100% Extra)</span>}</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", background: calc.balance > 0 ? `${color}18` : calc.balance < 0 ? "#ef444418" : "#1e2130", padding: "4px 8px", borderRadius: 4 }}>
+                         <span style={{ fontSize: 11, fontWeight: 600, color: calc.balance > 0 ? color : calc.balance < 0 ? "#ef4444" : "#e8eaf0" }}>Saldo Dia:</span>
+                         <span style={{ fontSize: 12, fontWeight: 800, color: calc.balance > 0 ? color : calc.balance < 0 ? "#ef4444" : "#e8eaf0" }}>{formatBalance(calc.balance)}</span>
+                      </div>
+                   </div>
+
+                 </div>
+               )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1587,7 +2031,7 @@ function NotesModule({ notes, setNotes, teams, isMobile }) {
 // ─── 10. Main App Wrapper (Autenticação + Sincronização) ──────────────────────
 function MainApp({ user }) {
   const isMobile = useIsMobile()
-  const [activeModule, setActiveModule] = useState("tasks")
+  const [activeModule, setActiveModule] = useState("timeclock") // Mudado para começar na nova aba
   
   // Utilizando o hook inteligente para puxar os dados do Firebase, ou usar o padrão se novo
   const [teams, setTeams, tLoaded] = useSyncedState("teams", INIT_TEAMS, user);
@@ -1597,12 +2041,13 @@ function MainApp({ user }) {
   const [indicators, setIndicators, indLoaded] = useSyncedState("indicators", INIT_INDICATORS, user);
   const [events, setEvents, evLoaded] = useSyncedState("events", [], user);
   const [alerts, setAlerts, altLoaded] = useSyncedState("alerts", [], user);
+  const [timesheet, setTimesheet, tsLoaded] = useSyncedState("timesheet", INIT_TIMESHEET, user);
 
   const [pomo, setPomo] = useState({ running: false, seconds: 25 * 60, initialSec: 25 * 60, isBreak: false, cycles: 0 })
   const [activeAlert, setActiveAlert] = useState(null)
   const [dbError, setDbError] = useState(false)
 
-  const allLoaded = tLoaded && tkLoaded && intLoaded && nLoaded && indLoaded && evLoaded && altLoaded;
+  const allLoaded = tLoaded && tkLoaded && intLoaded && nLoaded && indLoaded && evLoaded && altLoaded && tsLoaded;
 
   useEffect(() => {
     const handleDbError = () => setDbError(true);
@@ -1664,7 +2109,7 @@ function MainApp({ user }) {
 
   const handleLogout = () => signOut(auth);
 
-  const sharedProps = { teams, setTeams, tasks, setTasks, interruptions, setInterruptions, notes, setNotes, indicators, setIndicators, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts }
+  const sharedProps = { teams, setTeams, tasks, setTasks, interruptions, setInterruptions, notes, setNotes, indicators, setIndicators, timesheet, setTimesheet, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts }
 
   return (
     <div style={{ fontFamily: "'Manrope',sans-serif", background: "#0a0b0f", color: "#e8eaf0", minHeight: "100vh", position: "relative" }}>
@@ -1758,6 +2203,7 @@ function MainApp({ user }) {
         {activeModule === "teams"        && <TeamsModule        {...sharedProps} />}
         {activeModule === "tasks"        && <TasksModule        {...sharedProps} />}
         {activeModule === "productivity" && <ProductivityModule {...sharedProps} />}
+        {activeModule === "timeclock"    && <TimeclockModule    {...sharedProps} />}
         {activeModule === "indicators"   && <IndicatorsModule   {...sharedProps} />}
         {activeModule === "notes"        && <NotesModule        {...sharedProps} />}
       </main>
