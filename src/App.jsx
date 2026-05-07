@@ -53,7 +53,6 @@ const isPast = (d) => d && d < todayStr()
 const checkIsToday = (t) => (t.myDay || t.plannedDate === todayStr() || (t.plannedDate && t.plannedDate < todayStr()) || t.deadline === todayStr());
 const checkIsTomorrow = (t) => (!checkIsToday(t) && (t.plannedDate === tomorrowStr() || t.deadline === tomorrowStr()));
 
-// Funções de tempo para o Ponto
 const parseTime = (str) => {
   if (!str) return 0;
   const [h, m] = str.split(':').map(Number);
@@ -77,7 +76,7 @@ const formatBalance = (mins) => {
 
 const isWeekend = (dateStr) => {
   const d = new Date(dateStr + "T12:00:00");
-  return d.getDay() === 0 || d.getDay() === 6; // 0 = Dom, 6 = Sáb
+  return d.getDay() === 0 || d.getDay() === 6;
 }
 
 // ─── 2. Hooks de Sistema & Firebase Sync ──────────────────────────────────────
@@ -105,7 +104,6 @@ function useAppAssets() {
       document.head.appendChild(favicon)
     }
     
-    // ÍCONE DE APP - Representa Kanban, Processos, Equipe e Produtividade
     const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <defs>
         <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -233,13 +231,6 @@ const MODULES = [
 
 const PRIORITY_COLORS = { Urgente: "#ef4444", Alta: "#f97316", Média: "#eab308", Baixa: "#22c55e", Baixíssima: "#6b7280" }
 
-const TRIAGE_OPTIONS = [
-  { id: "delegate", label: "Delegar",           icon: "👥", color: "#3b82f6" },
-  { id: "meeting",  label: "Pauta Reunião",     icon: "📅", color: "#a855f7" },
-  { id: "register", label: "Registrar",         icon: "📋", color: "#6b7280" },
-  { id: "urgent",   label: "Resolver Hoje",     icon: "🔥", color: "#ef4444" },
-]
-
 const C = {
   card:  { background: "#12141a", border: "1px solid #1e2130", borderRadius: 12, padding: 16 },
   input: { background: "#1a1d26", border: "1px solid #2a2f40", borderRadius: 8, padding: "9px 12px", color: "#e8eaf0", fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box" },
@@ -270,27 +261,13 @@ function LoginScreen({ onLoginGoogle, onLoginAnon, onLoginEmail, onRegisterEmail
   const [password, setPassword] = useState("");
   const [isRegister, setIsRegister] = useState(false);
 
-  const handleGoogle = async () => {
-    setLoading(true);
-    await onLoginGoogle();
-    setLoading(false);
-  };
-
-  const handleAnon = async () => {
-    setLoading(true);
-    await onLoginAnon();
-    setLoading(false);
-  };
-  
+  const handleGoogle = async () => { setLoading(true); await onLoginGoogle(); setLoading(false); };
+  const handleAnon = async () => { setLoading(true); await onLoginAnon(); setLoading(false); };
   const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    if (!email || !password) return;
+    e.preventDefault(); if (!email || !password) return;
     setLoading(true);
-    if (isRegister) {
-      await onRegisterEmail(email, password);
-    } else {
-      await onLoginEmail(email, password);
-    }
+    if (isRegister) await onRegisterEmail(email, password);
+    else await onLoginEmail(email, password);
     setLoading(false);
   };
 
@@ -300,39 +277,23 @@ function LoginScreen({ onLoginGoogle, onLoginAnon, onLoginEmail, onRegisterEmail
         <div style={{ width: 56, height: 56, borderRadius: 16, background: `linear-gradient(135deg, #22c55e, #f97316)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>⚡</div>
         <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, margin: "0 0 8px", fontWeight: 800 }}>Meu Trampo</h1>
         <p style={{ color: '#9ca3af', marginBottom: 24, fontSize: 13, lineHeight: 1.5 }}>Faça login para sincronizar suas tarefas.</p>
-        
-        {error && (
-          <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 20, padding: 12, background: "#ef444422", borderRadius: 8, textAlign: "left", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-            {error}
-          </div>
-        )}
-        
+        {error && <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 20, padding: 12, background: "#ef444422", borderRadius: 8, textAlign: "left", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{error}</div>}
         <form onSubmit={handleEmailSubmit} style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
           <input type="email" placeholder="Seu E-mail" value={email} onChange={e => setEmail(e.target.value)} required style={C.input} />
           <input type="password" placeholder="Sua Senha" value={password} onChange={e => setPassword(e.target.value)} required style={C.input} />
-          <button type="submit" disabled={loading} style={{ ...C.btn("#3b82f6"), width: "100%", padding: "12px", fontSize: 14 }}>
-            {loading ? 'Aguarde...' : (isRegister ? 'Criar Conta' : 'Entrar com E-mail')}
-          </button>
+          <button type="submit" disabled={loading} style={{ ...C.btn("#3b82f6"), width: "100%", padding: "12px", fontSize: 14 }}>{loading ? 'Aguarde...' : (isRegister ? 'Criar Conta' : 'Entrar com E-mail')}</button>
         </form>
-        
-        <button onClick={() => setIsRegister(!isRegister)} type="button" style={{ background: "none", border: "none", color: "#9ca3af", fontSize: 12, cursor: "pointer", textDecoration: "underline", marginBottom: 20 }}>
-          {isRegister ? "Já tenho conta. Fazer Login." : "Não tem conta? Crie uma aqui."}
-        </button>
-
+        <button onClick={() => setIsRegister(!isRegister)} type="button" style={{ background: "none", border: "none", color: "#9ca3af", fontSize: 12, cursor: "pointer", textDecoration: "underline", marginBottom: 20 }}>{isRegister ? "Já tenho conta. Fazer Login." : "Não tem conta? Crie uma aqui."}</button>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <div style={{ flex: 1, height: 1, background: "#1e2130" }} />
           <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>OU</span>
           <div style={{ flex: 1, height: 1, background: "#1e2130" }} />
         </div>
-
         <button onClick={handleGoogle} disabled={loading} style={{ background: '#fff', color: '#000', padding: '12px 20px', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 14, cursor: 'pointer', width: "100%", display: "flex", justifyContent: "center", alignItems: "center", gap: 10, marginBottom: 12 }}>
           <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
           Google
         </button>
-
-        <button onClick={handleAnon} disabled={loading} style={{ background: 'transparent', color: '#9ca3af', padding: '12px 20px', borderRadius: 10, border: '1px solid #2a2f40', fontWeight: 600, fontSize: 13, cursor: 'pointer', width: "100%" }}>
-          Entrar como Visitante
-        </button>
+        <button onClick={handleAnon} disabled={loading} style={{ background: 'transparent', color: '#9ca3af', padding: '12px 20px', borderRadius: 10, border: '1px solid #2a2f40', fontWeight: 600, fontSize: 13, cursor: 'pointer', width: "100%" }}>Entrar como Visitante</button>
       </div>
     </div>
   );
@@ -446,7 +407,6 @@ function TeamsModule({ teams, setTeams, isMobile }) {
   if (team) {
     const activeTab = TAB_MAP.find(t => t.id === tab)
     const rawItems = team[activeTab.field] || []
-    
     const filteredItems = activeTab.field === "rts" ? rawItems : rawItems.filter(i => {
       const q = itemSearch.toLowerCase()
       if (!q) return true
@@ -499,9 +459,7 @@ function TeamsModule({ teams, setTeams, isMobile }) {
                 <h3 style={{ fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 800, margin: "0 0 4px" }}>{team.name}</h3>
                 <p style={{ color: "#9ca3af", fontSize: 13, margin: "0 0 12px" }}>{team.description}</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {sortedMembers.map(m => (
-                    <span key={m.id} style={{ ...C.tag(color), fontSize: 10 }}>{m.name} {m.role ? `(${m.role})` : ""}</span>
-                  ))}
+                  {sortedMembers.map(m => <span key={m.id} style={{ ...C.tag(color), fontSize: 10 }}>{m.name} {m.role ? `(${m.role})` : ""}</span>)}
                   {sortedMembers.length === 0 && <span style={{ fontSize: 11, color: "#6b7280" }}>Sem membros vinculados.</span>}
                 </div>
               </div>
@@ -526,16 +484,12 @@ function TeamsModule({ teams, setTeams, isMobile }) {
                  </div>
                  <button onClick={addRt} style={C.btn(color)}>+ Criar RT</button>
                </div>
-
-               {filteredItems.length === 0 ? (
-                 <p style={{ color: "#4b5563", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Nenhuma RT cadastrada.</p>
-               ) : (
+               {filteredItems.length === 0 ? <p style={{ color: "#4b5563", fontSize: 13, textAlign: "center", padding: "20px 0" }}>Nenhuma RT cadastrada.</p> : (
                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                    {filteredItems.map(rt => {
                       const feats = rt.features || []
                       const doneCount = feats.filter(f => f.done).length
                       const isExpanded = expandedItemId === rt.id
-
                       return (
                         <div key={rt.id} style={{ background: "#0a0b0f", border: "1px solid #1e2130", borderRadius: 8, padding: 12 }}>
                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", cursor: "pointer" }} onClick={() => setExpandedItemId(isExpanded ? null : rt.id)}>
@@ -554,20 +508,18 @@ function TeamsModule({ teams, setTeams, isMobile }) {
                                 <button onClick={(e) => { e.stopPropagation(); deleteRt(rt.id); }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
                               </div>
                            </div>
-
                            {isExpanded && (
                              <div style={{ marginTop: 16, borderTop: "1px solid #1e2130", paddingTop: 16 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                                   <span style={C.lbl}>Features da RT</span>
                                   <button onClick={(e) => { e.stopPropagation(); setAddingFeatRtId(rt.id) }} style={{ ...C.btn("#1e2130"), fontSize: 11, padding: "4px 8px" }}>+ Add Feature</button>
                                 </div>
-
                                 {addingFeatRtId === rt.id && (
                                   <div style={{ background: "#12141a", padding: 12, borderRadius: 8, marginBottom: 16, border: "1px solid #2a2f40" }}>
                                     <input placeholder="Nome da Feature *" value={featForm.text} onChange={e => setFeatForm({...featForm, text: e.target.value})} style={{ ...C.input, marginBottom: 8 }} />
                                     <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                                      <input type="date" value={featForm.startDate} onChange={e => setFeatForm({...featForm, startDate: e.target.value})} style={{ ...C.input, flex: 1 }} title="Início Previsto" />
-                                      <input type="date" value={featForm.endDate} onChange={e => setFeatForm({...featForm, endDate: e.target.value})} style={{ ...C.input, flex: 1 }} title="Fim Previsto" />
+                                      <input type="date" value={featForm.startDate} onChange={e => setFeatForm({...featForm, startDate: e.target.value})} style={{ ...C.input, flex: 1 }} />
+                                      <input type="date" value={featForm.endDate} onChange={e => setFeatForm({...featForm, endDate: e.target.value})} style={{ ...C.input, flex: 1 }} />
                                     </div>
                                     <textarea placeholder="Observações..." value={featForm.note} onChange={e => setFeatForm({...featForm, note: e.target.value})} style={{ ...C.input, minHeight: 60, marginBottom: 8 }} />
                                     <div style={{ display: "flex", gap: 8 }}>
@@ -576,10 +528,7 @@ function TeamsModule({ teams, setTeams, isMobile }) {
                                     </div>
                                   </div>
                                 )}
-
-                                {feats.length === 0 ? (
-                                  <p style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic", margin: 0 }}>Nenhuma feature cadastrada nesta RT.</p>
-                                ) : (
+                                {feats.length === 0 ? <p style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic", margin: 0 }}>Nenhuma feature cadastrada nesta RT.</p> : (
                                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                     {feats.map(f => (
                                       <div key={f.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "#12141a", padding: 10, borderRadius: 6, opacity: f.done ? 0.6 : 1 }}>
@@ -610,18 +559,14 @@ function TeamsModule({ teams, setTeams, isMobile }) {
               <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
                  <input placeholder={`Buscar em ${activeTab.label} (texto, detalhes ou tags)...`} value={itemSearch} onChange={e => setItemSearch(e.target.value)} style={{ ...C.input, background: "#0a0b0f" }} />
               </div>
-
               <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8, marginBottom: 14 }}>
                 <input placeholder={`Adicionar item rápido em ${activeTab.label}...`} value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem(activeTab.field)} style={C.input} />
                 <input placeholder="Tags (vírgula)" value={newItemTags} onChange={e => setNewItemTags(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem(activeTab.field)} style={{ ...C.input, width: isMobile ? "100%" : 160 }} />
                 <button onClick={() => addItem(activeTab.field)} style={C.btn(color)}>+</button>
               </div>
               
-              {filteredItems.length === 0
-                ? <p style={{ color: "#4b5563", fontSize: 13, textAlign: "center", padding: "20px 0" }}>{itemSearch ? "Nenhum resultado." : "Nenhum item adicionado."}</p>
-                : filteredItems.map(item => (
+              {filteredItems.length === 0 ? <p style={{ color: "#4b5563", fontSize: 13, textAlign: "center", padding: "20px 0" }}>{itemSearch ? "Nenhum resultado." : "Nenhum item adicionado."}</p> : filteredItems.map(item => (
                   <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 0", borderBottom: "1px solid #1e2130" }}>
-                    
                     {editingItemId === item.id ? (
                       <div style={{ background: "#0a0b0f", padding: 12, borderRadius: 8, display: "flex", flexDirection: "column", gap: 8 }}>
                         <input value={itemEditForm.text} onChange={e => setItemEditForm({...itemEditForm, text: e.target.value})} style={C.input} placeholder="Texto principal" />
@@ -638,12 +583,9 @@ function TeamsModule({ teams, setTeams, isMobile }) {
                           <div style={{ marginTop: 2 }}><Checkbox checked={item.status === "done"} onChange={() => toggleItem(activeTab.field, item.id)} color={color} /></div>
                           <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setExpandedItemId(expandedItemId === item.id ? null : item.id)}>
                             <span style={{ fontSize: 13, textDecoration: item.status === "done" ? "line-through" : "none", color: item.status === "done" ? "#4b5563" : "#e8eaf0", display: "block", wordBreak: "break-word", marginBottom: 4 }}>
-                              {item.text}
-                              {item.details && <span style={{ color: "#6b7280", fontSize: 11, marginLeft: 6 }}>📝</span>}
+                              {item.text} {item.details && <span style={{ color: "#6b7280", fontSize: 11, marginLeft: 6 }}>📝</span>}
                             </span>
-                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                              {(item.tags||[]).map((t, idx) => <span key={idx} style={{ ...C.tag("#6b7280"), fontSize: 9, padding: "1px 6px" }}>{t}</span>)}
-                            </div>
+                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{(item.tags||[]).map((t, idx) => <span key={idx} style={{ ...C.tag("#6b7280"), fontSize: 9, padding: "1px 6px" }}>{t}</span>)}</div>
                           </div>
                           <span style={{ fontSize: 10, color: "#4b5563", flexShrink: 0 }}>{item.createdAt}</span>
                           <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
@@ -652,11 +594,7 @@ function TeamsModule({ teams, setTeams, isMobile }) {
                             <button onClick={() => removeItem(activeTab.field, item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 13, padding: "0 4px" }}>✕</button>
                           </div>
                         </div>
-                        {expandedItemId === item.id && item.details && (
-                          <div style={{ marginLeft: 30, background: "#0a0b0f", padding: "8px 12px", borderRadius: 8, fontSize: 12, color: "#9ca3af", whiteSpace: "pre-wrap" }}>
-                            {item.details}
-                          </div>
-                        )}
+                        {expandedItemId === item.id && item.details && <div style={{ marginLeft: 30, background: "#0a0b0f", padding: "8px 12px", borderRadius: 8, fontSize: 12, color: "#9ca3af", whiteSpace: "pre-wrap" }}>{item.details}</div>}
                       </>
                     )}
                   </div>
@@ -671,9 +609,7 @@ function TeamsModule({ teams, setTeams, isMobile }) {
 
   return (
     <div>
-      <ModuleHeader title="Gestão de Equipes" subtitle="Squads, backlogs, RTs e pendências" color={color} isMobile={isMobile}
-        action={<button onClick={() => setShowForm(!showForm)} style={C.btn(color)}>+ Novo Squad</button>} />
-
+      <ModuleHeader title="Gestão de Equipes" subtitle="Squads, backlogs, RTs e pendências" color={color} isMobile={isMobile} action={<button onClick={() => setShowForm(!showForm)} style={C.btn(color)}>+ Novo Squad</button>} />
       {showForm && (
         <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
@@ -687,17 +623,12 @@ function TeamsModule({ teams, setTeams, isMobile }) {
         </div>
       )}
 
-      {teams.length === 0
-        ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 40 }}>Nenhum time cadastrado</div>
-        : (
+      {teams.length === 0 ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 40 }}>Nenhum time cadastrado</div> : (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(270px,1fr))", gap: 12 }}>
             {teams.map(t => {
               const sortedMembersCount = t.members.length;
               return (
-                <div key={t.id} onClick={() => setSelected(t.id)}
-                  style={{ ...C.card, cursor: "pointer", borderLeft: `4px solid ${color}`, transition: "transform 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)" }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)" }}>
+                <div key={t.id} onClick={() => setSelected(t.id)} style={{ ...C.card, cursor: "pointer", borderLeft: `4px solid ${color}`, transition: "transform 0.15s" }} onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)" }} onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)" }}>
                   <h3 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, margin: "0 0 4px", fontSize: 15 }}>{t.name}</h3>
                   <p style={{ color: "#9ca3af", fontSize: 12, margin: "0 0 14px", lineHeight: 1.5 }}>{t.description}</p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -711,8 +642,7 @@ function TeamsModule({ teams, setTeams, isMobile }) {
               )
             })}
           </div>
-        )
-      }
+        )}
     </div>
   )
 }
@@ -726,35 +656,23 @@ function SubtaskPanel({ task, onAdd, onToggle, onDelete, onEditSub, color, onUpd
 
   useEffect(() => { setNotes(task.notes || "") }, [task.notes])
 
-  const startEditSub = (sub) => {
-    setEditingSubId(sub.id)
-    setSubEditText(sub.text)
-  }
-
-  const saveEditSub = (subId) => {
-    if (subEditText.trim()) onEditSub(subId, subEditText.trim())
-    setEditingSubId(null)
-  }
+  const startEditSub = (sub) => { setEditingSubId(sub.id); setSubEditText(sub.text) }
+  const saveEditSub = (subId) => { if (subEditText.trim()) onEditSub(subId, subEditText.trim()); setEditingSubId(null) }
 
   return (
     <div style={{ marginTop: 10, marginLeft: 30, padding: 12, background: "#0a0b0f", borderRadius: 8 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div>
            <span style={{ ...C.lbl, display: "flex", justifyContent: "space-between", alignItems: "center" }}>📝 Anotações da Tarefa</span>
-           <textarea placeholder="Detalhes, links ou observações..." value={notes} onChange={e => setNotes(e.target.value)} onBlur={() => onUpdateNotes(task.id, notes)}
-             style={{ ...C.input, minHeight: 60, fontSize: 12, resize: "vertical" }} />
+           <textarea placeholder="Detalhes, links ou observações..." value={notes} onChange={e => setNotes(e.target.value)} onBlur={() => onUpdateNotes(task.id, notes)} style={{ ...C.input, minHeight: 60, fontSize: 12, resize: "vertical" }} />
         </div>
         <div>
           <span style={C.lbl}>Subtarefas ({task.subtasks.filter(s => s.done).length}/{task.subtasks.length})</span>
           {task.subtasks.map(sub => (
             <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0" }}>
               <Checkbox checked={sub.done} onChange={() => onToggle(sub.id)} color={color} />
-              
               {editingSubId === sub.id ? (
-                <input value={subEditText} onChange={e => setSubEditText(e.target.value)} 
-                  onKeyDown={e => e.key === "Enter" && saveEditSub(sub.id)} 
-                  onBlur={() => saveEditSub(sub.id)} autoFocus 
-                  style={{ ...C.input, padding: "4px 8px", fontSize: 12, flex: 1 }} />
+                <input value={subEditText} onChange={e => setSubEditText(e.target.value)} onKeyDown={e => e.key === "Enter" && saveEditSub(sub.id)} onBlur={() => saveEditSub(sub.id)} autoFocus style={{ ...C.input, padding: "4px 8px", fontSize: 12, flex: 1 }} />
               ) : (
                 <>
                   <span style={{ fontSize: 12, color: sub.done ? "#4b5563" : "#9ca3af", textDecoration: sub.done ? "line-through" : "none", flex: 1 }}>{sub.text}</span>
@@ -764,9 +682,7 @@ function SubtaskPanel({ task, onAdd, onToggle, onDelete, onEditSub, color, onUpd
               )}
             </div>
           ))}
-          <input placeholder="Nova subtarefa (Enter)" value={inp} onChange={e => setInp(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && inp.trim()) { onAdd(inp.trim()); setInp("") } }}
-            style={{ ...C.input, fontSize: 12, marginTop: 8, padding: "6px 10px" }} />
+          <input placeholder="Nova subtarefa (Enter)" value={inp} onChange={e => setInp(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && inp.trim()) { onAdd(inp.trim()); setInp("") } }} style={{ ...C.input, fontSize: 12, marginTop: 8, padding: "6px 10px" }} />
         </div>
       </div>
     </div>
@@ -778,15 +694,12 @@ function TasksModule({ tasks, setTasks, isMobile }) {
   const [view, setView] = useState("today")
   const [showForm, setShowForm] = useState(false)
   const [expanded, setExpanded] = useState(null)
-  
   const [filterText, setFilterText] = useState("")
   const [filterDate, setFilterDate] = useState("")
   const [filterPri, setFilterPri] = useState("")
   const [sortBy, setSortBy] = useState("manual") 
-
   const [editingTaskId, setEditingTaskId] = useState(null)
   const [taskEditForm, setTaskEditForm] = useState({})
-
   const [form, setForm] = useState({ title: "", deadline: "", priority: "Média", delegable: false, tags: "", myDay: false, forTomorrow: false, notes: "" })
 
   const overdueCount  = tasks.filter(t => isPast(t.deadline) && t.status !== "done").length
@@ -798,42 +711,18 @@ function TasksModule({ tasks, setTasks, isMobile }) {
     if (!form.title.trim()) return
     const plannedDate = form.forTomorrow ? tomorrowStr() : form.myDay ? todayStr() : ""
     setTasks(prev => [...prev, { id: Date.now(), ...form, plannedDate, tags: form.tags.split(",").map(s => s.trim()).filter(Boolean), subtasks: [], status: "todo", dueDate: todayStr() }])
-    setForm({ title: "", deadline: "", priority: "Média", delegable: false, tags: "", myDay: false, forTomorrow: false, notes: "" })
-    setShowForm(false)
+    setForm({ title: "", deadline: "", priority: "Média", delegable: false, tags: "", myDay: false, forTomorrow: false, notes: "" }); setShowForm(false)
   }
 
-  const startEditTask = (task) => {
-    setTaskEditForm({ ...task, tags: (task.tags||[]).join(", ") })
-    setEditingTaskId(task.id)
-  }
-
+  const startEditTask = (task) => { setTaskEditForm({ ...task, tags: (task.tags||[]).join(", ") }); setEditingTaskId(task.id) }
   const saveTaskEdit = () => {
-    setTasks(prev => prev.map(t => t.id === editingTaskId ? {
-      ...t,
-      title: taskEditForm.title,
-      deadline: taskEditForm.deadline,
-      priority: taskEditForm.priority,
-      tags: taskEditForm.tags.split(",").map(s => s.trim()).filter(Boolean),
-      delegable: taskEditForm.delegable,
-    } : t))
+    setTasks(prev => prev.map(t => t.id === editingTaskId ? { ...t, title: taskEditForm.title, deadline: taskEditForm.deadline, priority: taskEditForm.priority, tags: taskEditForm.tags.split(",").map(s => s.trim()).filter(Boolean), delegable: taskEditForm.delegable } : t))
     setEditingTaskId(null)
   }
 
   const toggleDone = (id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, status: t.status === "done" ? "todo" : "done" } : t))
-  const toggleMyDay = (id) => setTasks(prev => prev.map(t => {
-    if (t.id === id) {
-       if (checkIsToday(t)) return { ...t, myDay: false, plannedDate: null };
-       return { ...t, myDay: true, plannedDate: todayStr() };
-    }
-    return t;
-  }));
-  const toggleTomorrow = (id) => setTasks(prev => prev.map(t => {
-    if (t.id === id) {
-       if (checkIsTomorrow(t)) return { ...t, plannedDate: null };
-       return { ...t, myDay: false, plannedDate: tomorrowStr() };
-    }
-    return t;
-  }));
+  const toggleMyDay = (id) => setTasks(prev => prev.map(t => { if (t.id === id) { if (checkIsToday(t)) return { ...t, myDay: false, plannedDate: null }; return { ...t, myDay: true, plannedDate: todayStr() }; } return t; }));
+  const toggleTomorrow = (id) => setTasks(prev => prev.map(t => { if (t.id === id) { if (checkIsTomorrow(t)) return { ...t, plannedDate: null }; return { ...t, myDay: false, plannedDate: tomorrowStr() }; } return t; }));
   const deleteTask = (id) => setTasks(prev => prev.filter(t => t.id !== id))
   const addSubtask = (id, text) => setTasks(prev => prev.map(t => t.id === id ? { ...t, subtasks: [...t.subtasks, { id: Date.now(), text, done: false }] } : t))
   const toggleSubtask = (tid, sid) => setTasks(prev => prev.map(t => t.id === tid ? { ...t, subtasks: t.subtasks.map(s => s.id === sid ? { ...s, done: !s.done } : s) } : t))
@@ -844,39 +733,28 @@ function TasksModule({ tasks, setTasks, isMobile }) {
   const moveTask = (id, direction) => {
     const idx = tasks.findIndex(t => t.id === id)
     if (idx < 0) return
-    const newTasks = [...tasks]
-    let targetIdx = idx + direction
+    const newTasks = [...tasks]; let targetIdx = idx + direction
     while (targetIdx >= 0 && targetIdx < newTasks.length) {
        const t = newTasks[targetIdx]
-       const inView = (view === "today" && checkIsToday(t) && t.status !== "done") ||
-                      (view === "tomorrow" && checkIsTomorrow(t) && t.status !== "done") ||
-                      (view === "overdue" && isPast(t.deadline) && t.status !== "done") ||
-                      (view === "backlog" && t.status !== "done") ||
-                      (view === "done" && t.status === "done")
-       if (inView) {
-         [newTasks[idx], newTasks[targetIdx]] = [newTasks[targetIdx], newTasks[idx]]
-         setTasks(newTasks)
-         break
-       }
+       const inView = (view === "today" && checkIsToday(t) && t.status !== "done") || (view === "tomorrow" && checkIsTomorrow(t) && t.status !== "done") || (view === "overdue" && isPast(t.deadline) && t.status !== "done") || (view === "backlog" && t.status !== "done") || (view === "done" && t.status === "done")
+       if (inView) { [newTasks[idx], newTasks[targetIdx]] = [newTasks[targetIdx], newTasks[idx]]; setTasks(newTasks); break }
        targetIdx += direction
     }
   }
 
   const ORDER = { Urgente: 0, Alta: 1, Média: 2, Baixa: 3, Baixíssima: 4 }
-  
   let visible = tasks.filter(t => {
     if (t.status === "done") return view === "done"
     if (view === "today")    return checkIsToday(t)
     if (view === "tomorrow") return checkIsTomorrow(t)
     if (view === "overdue")  return isPast(t.deadline)
     if (view === "done")     return false 
-    return true // Exibe o restante no backlog
+    return true
   })
 
   if (filterText) visible = visible.filter(t => t.title.toLowerCase().includes(filterText.toLowerCase()) || (t.tags && t.tags.some(tag => tag.toLowerCase().includes(filterText.toLowerCase()))))
   if (filterPri)  visible = visible.filter(t => t.priority === filterPri)
   if (filterDate) visible = visible.filter(t => t.deadline === filterDate || t.plannedDate === filterDate)
-
   if (sortBy === "priority") visible.sort((a, b) => (ORDER[a.priority] ?? 5) - (ORDER[b.priority] ?? 5))
   if (sortBy === "deadline") visible.sort((a, b) => (a.deadline || "9999-99-99").localeCompare(b.deadline || "9999-99-99"))
 
@@ -890,21 +768,12 @@ function TasksModule({ tasks, setTasks, isMobile }) {
 
   return (
     <div>
-      <ModuleHeader title="Minhas Tarefas" subtitle="Planejamento do dia e gestão do backlog" color={color} isMobile={isMobile}
-        action={<button onClick={() => setShowForm(!showForm)} style={C.btn(color)}>+ Nova</button>} />
-
+      <ModuleHeader title="Minhas Tarefas" subtitle="Planejamento do dia e gestão do backlog" color={color} isMobile={isMobile} action={<button onClick={() => setShowForm(!showForm)} style={C.btn(color)}>+ Nova</button>} />
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <input placeholder="Buscar tag ou título..." value={filterText} onChange={e => setFilterText(e.target.value)} style={{ ...C.input, flex: 1, minWidth: 150 }} />
         <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ ...C.input, width: "auto" }} title="Buscar por data" />
-        <select value={filterPri} onChange={e => setFilterPri(e.target.value)} style={{ ...C.input, width: "auto", minWidth: 130 }}>
-          <option value="">Todas Prioridades</option>
-          {Object.keys(PRIORITY_COLORS).map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...C.input, width: "auto", minWidth: 130 }}>
-          <option value="manual">Ordem Manual</option>
-          <option value="priority">Por Prioridade</option>
-          <option value="deadline">Por Vencimento</option>
-        </select>
+        <select value={filterPri} onChange={e => setFilterPri(e.target.value)} style={{ ...C.input, width: "auto", minWidth: 130 }}><option value="">Todas Prioridades</option>{Object.keys(PRIORITY_COLORS).map(p => <option key={p} value={p}>{p}</option>)}</select>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...C.input, width: "auto", minWidth: 130 }}><option value="manual">Ordem Manual</option><option value="priority">Por Prioridade</option><option value="deadline">Por Vencimento</option></select>
       </div>
 
       {showForm && (
@@ -913,23 +782,14 @@ function TasksModule({ tasks, setTasks, isMobile }) {
             <input placeholder="Título *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} style={C.input} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <input type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} style={C.input} />
-              <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} style={{ ...C.input, appearance: "none" }}>
-                {Object.keys(PRIORITY_COLORS).map(p => <option key={p}>{p}</option>)}
-              </select>
+              <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} style={{ ...C.input, appearance: "none" }}>{Object.keys(PRIORITY_COLORS).map(p => <option key={p}>{p}</option>)}</select>
             </div>
             <input placeholder="Tags (vírgula)" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} style={C.input} />
             <textarea placeholder="Anotações Iniciais (Opcional)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} style={{ ...C.input, minHeight: 60, resize: "vertical" }} />
-            
             <div style={{ display: "flex", gap: 16 }}>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, color: "#9ca3af", cursor: "pointer" }}>
-                <input type="checkbox" checked={form.delegable} onChange={e => setForm({ ...form, delegable: e.target.checked })} /> Delegável
-              </label>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, color: "#9ca3af", cursor: "pointer" }}>
-                <input type="checkbox" checked={form.myDay} onChange={e => setForm({ ...form, myDay: e.target.checked, forTomorrow: e.target.checked ? false : form.forTomorrow })} /> Hoje
-              </label>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, color: "#9ca3af", cursor: "pointer" }}>
-                <input type="checkbox" checked={form.forTomorrow} onChange={e => setForm({ ...form, forTomorrow: e.target.checked, myDay: e.target.checked ? false : form.myDay })} /> Amanhã
-              </label>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, color: "#9ca3af", cursor: "pointer" }}><input type="checkbox" checked={form.delegable} onChange={e => setForm({ ...form, delegable: e.target.checked })} /> Delegável</label>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, color: "#9ca3af", cursor: "pointer" }}><input type="checkbox" checked={form.myDay} onChange={e => setForm({ ...form, myDay: e.target.checked, forTomorrow: e.target.checked ? false : form.forTomorrow })} /> Hoje</label>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, color: "#9ca3af", cursor: "pointer" }}><input type="checkbox" checked={form.forTomorrow} onChange={e => setForm({ ...form, forTomorrow: e.target.checked, myDay: e.target.checked ? false : form.myDay })} /> Amanhã</label>
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -941,11 +801,7 @@ function TasksModule({ tasks, setTasks, isMobile }) {
 
       <ScrollTabs tabs={tabs} active={view} onSelect={setView} color={view === "overdue" && overdueCount > 0 ? "#ef4444" : color} />
 
-      {visible.length === 0 && (
-        <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>
-          {filterText || filterPri || filterDate ? "Nenhuma tarefa corresponde ao filtro." : view === "today" ? "☀️ Nenhuma tarefa para hoje" : view === "tomorrow" ? "🌅 Nada programado para amanhã" : view === "overdue" ? "🎉 Sem vencidas!" : view === "done" ? "Ainda não há tarefas concluídas" : "Nenhuma tarefa"}
-        </div>
-      )}
+      {visible.length === 0 && <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>{filterText || filterPri || filterDate ? "Nenhuma tarefa corresponde ao filtro." : view === "today" ? "☀️ Nenhuma tarefa para hoje" : view === "tomorrow" ? "🌅 Nada programado para amanhã" : view === "overdue" ? "🎉 Sem vencidas!" : view === "done" ? "Ainda não há tarefas concluídas" : "Nenhuma tarefa"}</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {visible.map((task) => {
@@ -960,14 +816,10 @@ function TasksModule({ tasks, setTasks, isMobile }) {
                 <input value={taskEditForm.title} onChange={e => setTaskEditForm({...taskEditForm, title: e.target.value})} style={C.input} placeholder="Título" />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <input type="date" value={taskEditForm.deadline || ""} onChange={e => setTaskEditForm({...taskEditForm, deadline: e.target.value})} style={C.input} />
-                  <select value={taskEditForm.priority} onChange={e => setTaskEditForm({...taskEditForm, priority: e.target.value})} style={C.input}>
-                    {Object.keys(PRIORITY_COLORS).map(p => <option key={p}>{p}</option>)}
-                  </select>
+                  <select value={taskEditForm.priority} onChange={e => setTaskEditForm({...taskEditForm, priority: e.target.value})} style={C.input}>{Object.keys(PRIORITY_COLORS).map(p => <option key={p}>{p}</option>)}</select>
                 </div>
                 <input value={taskEditForm.tags} onChange={e => setTaskEditForm({...taskEditForm, tags: e.target.value})} style={C.input} placeholder="Tags (vírgula)" />
-                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, color: "#9ca3af" }}>
-                  <input type="checkbox" checked={taskEditForm.delegable} onChange={e => setTaskEditForm({...taskEditForm, delegable: e.target.checked})} /> Delegável
-                </label>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, color: "#9ca3af" }}><input type="checkbox" checked={taskEditForm.delegable} onChange={e => setTaskEditForm({...taskEditForm, delegable: e.target.checked})} /> Delegável</label>
                 <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                   <button onClick={saveTaskEdit} style={C.btn(pc)}>Atualizar</button>
                   <button onClick={() => setEditingTaskId(null)} style={C.btn("transparent")}>Cancelar</button>
@@ -985,44 +837,26 @@ function TasksModule({ tasks, setTasks, isMobile }) {
                     <button onClick={() => moveTask(task.id, 1)} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 14, padding: 0 }}>↓</button>
                   </div>
                 )}
-                <div style={{ paddingTop: sortBy === "manual" ? 4 : 1, flexShrink: 0 }}>
-                  <Checkbox checked={task.status === "done"} onChange={() => toggleDone(task.id)} color={pc} />
-                </div>
+                <div style={{ paddingTop: sortBy === "manual" ? 4 : 1, flexShrink: 0 }}><Checkbox checked={task.status === "done"} onChange={() => toggleDone(task.id)} color={pc} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontWeight: 600, fontSize: 14, margin: "0 0 6px", textDecoration: task.status === "done" ? "line-through" : "none", color: task.status === "done" ? "#6b7280" : "#e8eaf0", wordBreak: "break-word" }}>
-                    {task.title}
-                  </p>
+                  <p style={{ fontWeight: 600, fontSize: 14, margin: "0 0 6px", textDecoration: task.status === "done" ? "line-through" : "none", color: task.status === "done" ? "#6b7280" : "#e8eaf0", wordBreak: "break-word" }}>{task.title}</p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
                     <span style={C.tag(pc)}>{task.priority}</span>
                     {task.delegable && <span style={C.tag("#3b82f6")}>↗ Deleg.</span>}
                     {task.deadline  && <span style={C.tag(overdue ? "#ef4444" : "#6b7280")}>{overdue ? "⚠️ " : ""}{task.deadline}</span>}
                     {task.tags?.map((t, i) => <span key={i} style={C.tag()}>{t}</span>)}
-                    {(task.notes || task.subtasks.length > 0) && (
-                      <span style={{ fontSize: 11, color: "#6b7280", marginLeft: 4 }}>
-                        {task.subtasks.length > 0 && `📋 ${task.subtasks.filter(s=>s.done).length}/${task.subtasks.length} `}
-                        {task.notes && `📝 Anot.`}
-                      </span>
-                    )}
+                    {(task.notes || task.subtasks.length > 0) && <span style={{ fontSize: 11, color: "#6b7280", marginLeft: 4 }}>{task.subtasks.length > 0 && `📋 ${task.subtasks.filter(s=>s.done).length}/${task.subtasks.length} `}{task.notes && `📝 Anot.`}</span>}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 4, flexShrink: 0, paddingTop: sortBy === "manual" ? 4 : 0 }}>
                   <button onClick={() => toggleTomorrow(task.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, opacity: isTomorrow ? 1 : 0.2, padding: "2px 3px", transition: "opacity 0.2s" }} title={isTomorrow ? "Remover do Amanhã" : "Programar para Amanhã"}>🌅</button>
                   <button onClick={() => toggleMyDay(task.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, opacity: isToday ? 1 : 0.2, padding: "2px 3px", transition: "opacity 0.2s" }} title={isToday ? "Remover do Hoje" : "Adicionar ao Hoje"}>☀️</button>
-                  <button onClick={() => setExpanded(expanded === task.id ? null : task.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 12, padding: "2px 4px" }}>
-                    {expanded === task.id ? "▲" : "▼"}
-                  </button>
+                  <button onClick={() => setExpanded(expanded === task.id ? null : task.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 12, padding: "2px 4px" }}>{expanded === task.id ? "▲" : "▼"}</button>
                   <button onClick={() => startEditTask(task)} style={{ background: "none", border: "none", cursor: "pointer", color: "#3b82f6", fontSize: 12, padding: "2px 3px" }} title="Editar Tarefa">✏️</button>
                   <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4b5563", fontSize: 13, padding: "2px 3px" }}>✕</button>
                 </div>
               </div>
-              {expanded === task.id && (
-                <SubtaskPanel task={task} color={pc}
-                  onAdd={(text) => addSubtask(task.id, text)}
-                  onToggle={(sid) => toggleSubtask(task.id, sid)}
-                  onDelete={(sid) => delSubtask(task.id, sid)}
-                  onEditSub={(sid, txt) => editSubtask(task.id, sid, txt)}
-                  onUpdateNotes={updateTaskNotes} />
-              )}
+              {expanded === task.id && <SubtaskPanel task={task} color={pc} onAdd={(text) => addSubtask(task.id, text)} onToggle={(sid) => toggleSubtask(task.id, sid)} onDelete={(sid) => delSubtask(task.id, sid)} onEditSub={(sid, txt) => editSubtask(task.id, sid, txt)} onUpdateNotes={updateTaskNotes} />}
             </div>
           )
         })}
@@ -1032,17 +866,14 @@ function TasksModule({ tasks, setTasks, isMobile }) {
 }
 
 // ─── 7. Módulo Produtividade ──────────────────────────────────────────────────
-function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts }) {
+function ProductivityModule({ researchItems, setResearchItems, tasks, setTasks, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts }) {
   const color = "#22c55e"
   
   const [customPomo, setCustomPomo] = useState("")
 
-  const [captureText, setCaptureText] = useState("")
-  const [capturePriority, setCapturePriority] = useState("Média")
-  const [captureTriage, setCaptureTriage] = useState("")
-  const [editingItem, setEditingItem] = useState(null)
-  const [editForm, setEditForm] = useState({ text: "", priority: "Média", triage: "" })
-  const [inboxSort, setInboxSort] = useState("priority") 
+  // Checklist de Aprendizado
+  const [researchText, setResearchText] = useState("")
+  const [researchAction, setResearchAction] = useState("Pesquisar") // Estudar, Pesquisar, Entender
 
   const [calDate, setCalDate] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(null)
@@ -1055,26 +886,22 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
   const pomoProgress = pomo.isBreak ? ((5*60 - pomo.seconds)/(5*60))*100 : ((pomo.initialSec - pomo.seconds)/(pomo.initialSec))*100
   const R = 54, CIRCUM = 2 * Math.PI * R
 
-  const capture = () => {
-    if (!captureText.trim()) return
-    const newItem = { id: Date.now(), text: captureText, priority: capturePriority, triage: captureTriage || null, done: false, createdAt: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }
-    setInterruptions(prev => [newItem, ...prev])
-    setCaptureText(""); setCapturePriority("Média"); setCaptureTriage("");
+  // Funções do Checklist de Aprendizado
+  const addResearch = () => {
+    if (!researchText.trim()) return
+    const newItem = { id: Date.now(), text: researchText, action: researchAction, done: false, createdAt: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }
+    setResearchItems(prev => [newItem, ...prev])
+    setResearchText(""); setResearchAction("Pesquisar");
   }
 
-  const saveEdit = (id) => {
-    setInterruptions(prev => prev.map(i => i.id === id ? { ...i, text: editForm.text, priority: editForm.priority, triage: editForm.triage || null } : i))
-    setEditingItem(null)
-  }
-
-  const toggleInt = (id) => setInterruptions(prev => prev.map(i => i.id === id ? { ...i, done: !i.done } : i))
-  const deleteInt = (id) => setInterruptions(prev => prev.filter(i => i.id !== id)) 
+  const toggleRes = (id) => setResearchItems(prev => prev.map(i => i.id === id ? { ...i, done: !i.done } : i))
+  const deleteRes = (id) => setResearchItems(prev => prev.filter(i => i.id !== id)) 
 
   const turnIntoTask = (id) => {
-    const item = interruptions.find(i => i.id === id)
+    const item = researchItems.find(i => i.id === id)
     if (!item) return
-    setTasks(prev => [{ id: Date.now(), title: item.text, priority: item.priority, tags: ["Inbox"], status: "todo", myDay: false, plannedDate: "", delegable: false, subtasks: [], dueDate: todayStr() }, ...prev])
-    deleteInt(id)
+    setTasks(prev => [{ id: Date.now(), title: `${item.action}: ${item.text}`, priority: "Média", tags: ["Estudo"], status: "todo", myDay: false, plannedDate: "", delegable: false, subtasks: [], dueDate: todayStr() }, ...prev])
+    deleteRes(id)
   }
 
   const startCustomPomo = () => {
@@ -1098,13 +925,7 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
     setNewEvent(""); setNewEventTags("")
   }
 
-  const sortedInbox = [...interruptions].sort((a,b) => {
-     if (inboxSort === "priority") {
-       const o = { Urgente: 1, Alta: 2, Média: 3, Baixa: 4, Baixíssima: 5 }
-       return (o[a.priority] || 9) - (o[b.priority] || 9)
-     }
-     return b.id - a.id // mais recentes
-  })
+  const sortedResearch = [...researchItems].sort((a,b) => b.id - a.id)
 
   const firstDay = new Date(calDate.getFullYear(), calDate.getMonth(), 1).getDay()
   const daysInMonth = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0).getDate()
@@ -1119,9 +940,7 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
       <div style={{ position: "relative", width: 130, height: 130, margin: "0 auto 14px" }}>
         <svg width="130" height="130" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
           <circle cx="65" cy="65" r={R} fill="none" stroke="#1e2130" strokeWidth="7" />
-          <circle cx="65" cy="65" r={R} fill="none" stroke={pomo.isBreak ? "#3b82f6" : color} strokeWidth="7"
-            strokeDasharray={CIRCUM} strokeDashoffset={CIRCUM * (1 - pomoProgress / 100)}
-            strokeLinecap="round" style={{ transition: "stroke-dashoffset 1s linear" }} />
+          <circle cx="65" cy="65" r={R} fill="none" stroke={pomo.isBreak ? "#3b82f6" : color} strokeWidth="7" strokeDasharray={CIRCUM} strokeDashoffset={CIRCUM * (1 - pomoProgress / 100)} strokeLinecap="round" style={{ transition: "stroke-dashoffset 1s linear" }} />
         </svg>
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 30, fontWeight: 800, color: pomo.isBreak ? "#3b82f6" : color, lineHeight: 1 }}>{fmtTime(pomo.seconds)}</span>
@@ -1129,15 +948,12 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
         </div>
       </div>
       <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 10 }}>
-        <button onClick={() => setPomo(p => ({ ...p, running: !p.running }))} style={C.btn(pomo.running ? "#4b5563" : color)}>
-          {pomo.running ? "⏸" : "▶"} {pomo.running ? "Pausar" : "Iniciar"}
-        </button>
+        <button onClick={() => setPomo(p => ({ ...p, running: !p.running }))} style={C.btn(pomo.running ? "#4b5563" : color)}>{pomo.running ? "⏸" : "▶"} {pomo.running ? "Pausar" : "Iniciar"}</button>
         <button onClick={() => { setPomo(p => ({ ...p, running: false, seconds: 25*60, initialSec: 25*60, isBreak: false, cycles: 0 })) }} style={C.btn("#1e2130")}>↺</button>
       </div>
       <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
         {[["25m", 25*60, false], ["5m", 5*60, true], ["15m", 15*60, true]].map(([lbl, sec, isBreak]) => (
-          <button key={lbl} onClick={() => { setPomo(p => ({ ...p, running: false, isBreak, seconds: sec, initialSec: sec })) }}
-            style={{ ...C.btn("#1e2130"), fontSize: 11, padding: "4px 8px" }}>{lbl}</button>
+          <button key={lbl} onClick={() => { setPomo(p => ({ ...p, running: false, isBreak, seconds: sec, initialSec: sec })) }} style={{ ...C.btn("#1e2130"), fontSize: 11, padding: "4px 8px" }}>{lbl}</button>
         ))}
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 10 }}>
            <input type="number" placeholder="Min" value={customPomo} onChange={e => setCustomPomo(e.target.value)} onKeyDown={e => e.key === 'Enter' && startCustomPomo()} style={{ ...C.input, width: 50, padding: "4px 6px", fontSize: 11 }} />
@@ -1159,11 +975,9 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
     return (
       <div style={C.card}>
         <p style={{ ...C.lbl, marginBottom: 8 }}>📅 Calendário</p>
-        
         <div style={{ marginBottom: 12 }}>
           <input placeholder="Busca global de eventos..." value={calSearch} onChange={e => setCalSearch(e.target.value)} style={{ ...C.input, fontSize: 12, padding: "6px 10px", background: "#0a0b0f" }} />
         </div>
-
         {hasSearch ? (
            <div style={{ background: "#0a0b0f", padding: 10, borderRadius: 8 }}>
               <p style={{ fontSize: 11, color: "#9ca3af", marginBottom: 10 }}>Resultados da busca:</p>
@@ -1171,15 +985,9 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
               {filteredEvents.map(e => (
                  <div key={e.id} style={{ fontSize: 12, marginBottom: 10, display: "flex", flexDirection: "column", borderBottom: "1px solid #1e2130", paddingBottom: 6 }}>
                     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                      <span style={{ color: "#a855f7" }}>•</span> 
-                      <span style={{ color: "#6b7280", fontSize: 10 }}>[{e.date.split('-').reverse().join('/')}]</span>
-                      <span style={{ wordBreak: "break-word", fontWeight: 600 }}>{e.title}</span>
+                      <span style={{ color: "#a855f7" }}>•</span> <span style={{ color: "#6b7280", fontSize: 10 }}>[{e.date.split('-').reverse().join('/')}]</span> <span style={{ wordBreak: "break-word", fontWeight: 600 }}>{e.title}</span>
                     </div>
-                    {e.tags && e.tags.length > 0 && (
-                      <div style={{ display: "flex", gap: 4, marginLeft: 12, marginTop: 4 }}>
-                        {e.tags.map((t, idx) => <span key={idx} style={{ ...C.tag("#a855f7"), fontSize: 9, padding: "1px 5px" }}>{t}</span>)}
-                      </div>
-                    )}
+                    {e.tags && e.tags.length > 0 && <div style={{ display: "flex", gap: 4, marginLeft: 12, marginTop: 4 }}>{e.tags.map((t, idx) => <span key={idx} style={{ ...C.tag("#a855f7"), fontSize: 9, padding: "1px 5px" }}>{t}</span>)}</div>}
                  </div>
               ))}
            </div>
@@ -1187,50 +995,32 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <button onClick={handlePrevMonth} style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer" }}>&lt;</button>
-              <p style={{ fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 700, margin: 0, textTransform: "capitalize" }}>
-                {calDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
-              </p>
+              <p style={{ fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 700, margin: 0, textTransform: "capitalize" }}>{calDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
               <button onClick={handleNextMonth} style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer" }}>&gt;</button>
             </div>
-
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, textAlign: "center" }}>
               {["D","S","T","Q","Q","S","S"].map((d, i) => <span key={i} style={{ fontSize: 9, color: "#4b5563", fontWeight: 700, padding: "2px 0" }}>{d}</span>)}
               {Array.from({ length: firstDay }).map((_, i) => <span key={`e${i}`} />)}
               {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
                 const dateStr = `${calDate.getFullYear()}-${String(calDate.getMonth()+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`
-                const isToday = dateStr === todayStr()
-                const hasEvt  = filteredEvents.some(e => e.date === dateStr)
-                const isSel   = selectedDate === dateStr
-                
+                const isToday = dateStr === todayStr(); const hasEvt = filteredEvents.some(e => e.date === dateStr); const isSel = selectedDate === dateStr
                 return (
                   <div key={d} style={{ position: "relative", cursor: "pointer", height: 24 }} onClick={() => setSelectedDate(isSel ? null : dateStr)}>
                     <div style={{ padding: "3px 1px", background: isSel ? "#4b5563" : isToday ? color : "transparent", borderRadius: 4, color: isToday ? "#000" : isSel ? "#fff" : "#9ca3af", fontSize: 10, fontWeight: isToday ? 700 : 400, zIndex: 2, position: "relative" }}>{d}</div>
-                    <div style={{ position: "absolute", bottom: -2, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 2, zIndex: 1 }}>
-                      {hasEvt && <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#a855f7" }} />}
-                    </div>
+                    <div style={{ position: "absolute", bottom: -2, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 2, zIndex: 1 }}>{hasEvt && <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#a855f7" }} />}</div>
                   </div>
                 )
               })}
             </div>
-            
             <div style={{ marginTop: 16, borderTop: "1px solid #1e2130", paddingTop: 10 }}>
               {selectedDate && (
                 <div style={{ background: "#0a0b0f", padding: 10, borderRadius: 8 }}>
                   <p style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>Eventos de {selectedDate.split('-').reverse().join('/')}:</p>
-                  
                   {filteredEvents.filter(e => e.date === selectedDate).length === 0 && <p style={{ fontSize: 11, color: "#4b5563", fontStyle: "italic", margin: "0 0 8px" }}>Sem eventos.</p>}
-                  
                   {filteredEvents.filter(e => e.date === selectedDate).map(e => (
                      <div key={e.id} style={{ fontSize: 12, marginBottom: 6 }}>
-                        <div style={{ display: "flex", gap: 5 }}>
-                          <span style={{ color: "#a855f7" }}>•</span> 
-                          <span style={{ wordBreak: "break-word" }}>{e.title}</span>
-                        </div>
-                        {e.tags && e.tags.length > 0 && (
-                          <div style={{ display: "flex", gap: 4, marginLeft: 12, marginTop: 2 }}>
-                            {e.tags.map((t, idx) => <span key={idx} style={{ ...C.tag("#a855f7"), fontSize: 9, padding: "1px 5px" }}>{t}</span>)}
-                          </div>
-                        )}
+                        <div style={{ display: "flex", gap: 5 }}><span style={{ color: "#a855f7" }}>•</span><span style={{ wordBreak: "break-word" }}>{e.title}</span></div>
+                        {e.tags && e.tags.length > 0 && <div style={{ display: "flex", gap: 4, marginLeft: 12, marginTop: 2 }}>{e.tags.map((t, idx) => <span key={idx} style={{ ...C.tag("#a855f7"), fontSize: 9, padding: "1px 5px" }}>{t}</span>)}</div>}
                      </div>
                   ))}
                   <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 8 }}>
@@ -1251,94 +1041,57 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
 
   return (
     <div>
-      <ModuleHeader title="Produtividade" subtitle="Mantenha o foco e capture demandas" color={color} isMobile={isMobile} />
+      <ModuleHeader title="Produtividade" subtitle="Mantenha o foco e capture aprendizados" color={color} isMobile={isMobile} />
 
-      {/* Pomodoro at Top */}
       <Pomodoro />
 
-      {/* Quick Capture */}
+      {/* Checklist de Aprendizado */}
       <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16 }}>
-        <p style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, marginBottom: 10 }}>⚡ Captura Rápida (Inbox)</p>
+        <p style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, marginBottom: 10 }}>📚 Checklist de Aprendizado</p>
         <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8 }}>
-          <input placeholder="O que é / O que aconteceu?" value={captureText} onChange={e => setCaptureText(e.target.value)} onKeyDown={e => e.key === "Enter" && !isMobile && capture()} style={{ ...C.input, flex: 1 }} />
-          <select value={captureTriage} onChange={e => setCaptureTriage(e.target.value)} style={{ ...C.input, width: isMobile ? "100%" : 150 }} title="Tag Opcional">
-             <option value="">Sem Tag</option>
-             {TRIAGE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+          <select value={researchAction} onChange={e => setResearchAction(e.target.value)} style={{ ...C.input, width: isMobile ? "100%" : 130 }}>
+            <option value="Pesquisar">Pesquisar</option>
+            <option value="Estudar">Estudar</option>
+            <option value="Entender">Entender</option>
           </select>
-          <select value={capturePriority} onChange={e => setCapturePriority(e.target.value)} style={{ ...C.input, width: isMobile ? "100%" : 130 }}>
-            {Object.keys(PRIORITY_COLORS).map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <button onClick={capture} style={C.btn(color)}>Capturar</button>
+          <input placeholder="Termo, conceito, tecnologia..." value={researchText} onChange={e => setResearchText(e.target.value)} onKeyDown={e => e.key === "Enter" && !isMobile && addResearch()} style={{ ...C.input, flex: 1 }} />
+          <button onClick={addResearch} style={C.btn(color)}>Adicionar</button>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 280px", gap: 20 }}>
-        {/* Inbox List */}
+        {/* Lista do Checklist */}
         <div>
            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-             <span style={C.lbl}>Lista de Interrupções ({sortedInbox.length})</span>
-             <select value={inboxSort} onChange={e => setInboxSort(e.target.value)} style={{ ...C.input, width: "auto", padding: "4px 8px", fontSize: 11 }}>
-                <option value="priority">Por Prioridade</option>
-                <option value="date">Mais Recentes</option>
-             </select>
+             <span style={C.lbl}>Termos para Pesquisar ({sortedResearch.filter(i => !i.done).length} pendentes)</span>
            </div>
 
            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {sortedInbox.length === 0
-              ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 32 }}>Nenhum item na caixa de entrada! 🎉</div>
-              : sortedInbox.map(item => {
-                  const tOpt = TRIAGE_OPTIONS.find(o => o.id === item.triage);
-                  return (
-                    <div key={item.id} style={{...C.card, borderLeft: `4px solid ${PRIORITY_COLORS[item.priority]}`, opacity: item.done ? 0.5 : 1 }}>
-                      {editingItem === item.id ? (
-                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                           <input value={editForm.text} onChange={e => setEditForm({...editForm, text: e.target.value})} style={C.input} />
-                           <div style={{ display: "flex", gap: 8 }}>
-                             <select value={editForm.triage} onChange={e => setEditForm({...editForm, triage: e.target.value})} style={{ ...C.input, flex: 1 }}>
-                               <option value="">Sem Tag</option>
-                               {TRIAGE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                             </select>
-                             <select value={editForm.priority} onChange={e => setEditForm({...editForm, priority: e.target.value})} style={{ ...C.input, flex: 1 }}>
-                               {Object.keys(PRIORITY_COLORS).map(p => <option key={p}>{p}</option>)}
-                             </select>
-                           </div>
-                           <div style={{ display: "flex", gap: 6 }}>
-                             <button onClick={() => saveEdit(item.id)} style={C.btn(color)}>Salvar</button>
-                             <button onClick={() => setEditingItem(null)} style={C.btn("transparent")}>Cancelar</button>
-                           </div>
-                         </div>
-                      ) : (
-                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                          <div style={{ marginTop: 2 }}><Checkbox checked={item.done} onChange={() => toggleInt(item.id)} color={PRIORITY_COLORS[item.priority]} /></div>
-                          <div style={{ flex: 1 }}>
-                            <p style={{ fontWeight: 600, margin: 0, fontSize: 13, textDecoration: item.done ? "line-through" : "none", color: item.done ? "#6b7280" : "#e8eaf0", wordBreak: "break-word" }}>{item.text}</p>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6, alignItems: "center" }}>
-                              <span style={{ ...C.tag(PRIORITY_COLORS[item.priority]), padding: "2px 6px", fontSize: 9 }}>{item.priority}</span>
-                              {tOpt && <span style={{ ...C.tag(tOpt.color), padding: "2px 6px", fontSize: 9 }}>{tOpt.icon} {tOpt.label}</span>}
-                              <span style={{ fontSize: 10, color: "#6b7280", alignSelf: "center", marginLeft: 4 }}>{item.createdAt}</span>
+            {sortedResearch.length === 0 ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 32 }}>Nenhum termo na lista. Tudo dominado! 🧠</div> : sortedResearch.map(item => (
+                <div key={item.id} style={{...C.card, borderLeft: `4px solid ${item.done ? '#4b5563' : color}`, opacity: item.done ? 0.5 : 1 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                        <div style={{ marginTop: 2 }}><Checkbox checked={item.done} onChange={() => toggleRes(item.id)} color={color} /></div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                                <span style={{ ...C.tag(color), padding: "2px 6px", fontSize: 9 }}>{item.action}</span>
+                                <span style={{ fontSize: 10, color: "#6b7280" }}>{item.createdAt}</span>
                             </div>
-                          </div>
-                          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                            <button onClick={() => turnIntoTask(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#f97316", padding: "0 4px", fontSize: 12 }} title="Transformar em Tarefa">↗️ Tarefa</button>
-                            <button onClick={() => { setEditForm({ text: item.text, priority: item.priority, triage: item.triage || "" }); setEditingItem(item.id) }} style={{ background: "none", border: "none", cursor: "pointer", color: "#3b82f6", padding: "0 4px", fontSize: 12 }}>✏️</button>
-                            <button onClick={() => deleteInt(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: "0 4px", fontSize: 13 }}>✕</button>
-                          </div>
+                            <p style={{ fontWeight: 600, margin: 0, fontSize: 14, textDecoration: item.done ? "line-through" : "none", color: item.done ? "#6b7280" : "#e8eaf0", wordBreak: "break-word" }}>{item.text}</p>
                         </div>
-                      )}
+                        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                            <button onClick={() => turnIntoTask(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#f97316", padding: "0 4px", fontSize: 12 }} title="Transformar em Tarefa">↗️ Tarefa</button>
+                            <button onClick={() => deleteRes(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: "0 4px", fontSize: 13 }}>✕</button>
+                        </div>
                     </div>
-                  )
-              })
-            }
+                </div>
+            ))}
            </div>
         </div>
 
         {/* Right Column: Alerts & Calendar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          
-          {/* Alerts Panel */}
           <div style={C.card}>
             <span style={{ ...C.lbl, color: "#ef4444" }}>⏰ Alertas Programados</span>
-            
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
               <input placeholder="Descrição do alerta..." value={alertForm.text} onChange={e => setAlertForm({...alertForm, text: e.target.value})} style={{ ...C.input, fontSize: 12 }} />
               <div style={{ display: "flex", gap: 6 }}>
@@ -1347,7 +1100,6 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
               </div>
               <button onClick={addAlert} style={{ ...C.btn("#ef4444"), fontSize: 11, padding: "6px" }}>+ Criar Alerta</button>
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 150, overflowY: "auto" }}>
                {alerts.length === 0 && <p style={{ fontSize: 11, color: "#4b5563", textAlign: "center", margin: "4px 0" }}>Nenhum alerta ativo.</p>}
                {alerts.map(a => (
@@ -1361,7 +1113,6 @@ function ProductivityModule({ interruptions, setInterruptions, tasks, setTasks, 
                ))}
             </div>
           </div>
-
           <MiniCal />
         </div>
       </div>
@@ -1374,7 +1125,6 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
   const color = "#14b8a6";
   const [nowDate, setNowDate] = useState(new Date());
 
-  // Atualiza o relógio em tempo real a cada 1 segundo (e recalcula o tempo)
   useEffect(() => {
     const t = setInterval(() => setNowDate(new Date()), 1000);
     return () => clearInterval(t);
@@ -1383,54 +1133,30 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
   const [retroForm, setRetroForm] = useState({ date: todayStr(), time: "" });
   const [adjForm, setAdjForm] = useState({ date: todayStr(), hours: "", minutes: "", type: "subtract", obs: "" });
   const [showAdj, setShowAdj] = useState(false);
-  
-  // ATUALIZADO: Estado e Toggle para o formulário de ausências (Férias/Feriados)
   const [absenceForm, setAbsenceForm] = useState({ startDate: todayStr(), endDate: todayStr(), type: "Férias", description: "" });
   const [showAbsenceForm, setShowAbsenceForm] = useState(false);
-
-  // ATUALIZADO: Novo estado para gerenciar o mês selecionado no histórico
   const [selectedMonth, setSelectedMonth] = useState(() => todayStr().substring(0, 7));
 
-  // Core Calc Function
   const calcDay = (dateStr, punches, isHoliday) => {
-    let workedMins = 0;
-    let expectedEnd = null;
-    let isRunning = punches.length % 2 !== 0;
-
+    let workedMins = 0; let expectedEnd = null; let isRunning = punches.length % 2 !== 0;
     for (let i = 0; i < punches.length; i += 2) {
-      let start = parseTime(punches[i]);
-      let end = punches[i+1] ? parseTime(punches[i+1]) : null;
-      if (end !== null) {
-        workedMins += (end - start);
-      } else if (dateStr === todayStr()) {
-        let nowMins = nowDate.getHours() * 60 + nowDate.getMinutes();
-        workedMins += (nowMins - start);
-      }
+      let start = parseTime(punches[i]); let end = punches[i+1] ? parseTime(punches[i+1]) : null;
+      if (end !== null) workedMins += (end - start);
+      else if (dateStr === todayStr()) { let nowMins = nowDate.getHours() * 60 + nowDate.getMinutes(); workedMins += (nowMins - start); }
     }
-
-    // Dias no futuro (que ainda não chegaram) recebem meta de 0h
-    // para que não gerem um falso saldo negativo antecipado no banco geral.
-    let reqMins = (isWeekend(dateStr) || isHoliday || dateStr > todayStr()) ? 0 : 480; // 8 horas
+    let reqMins = (isWeekend(dateStr) || isHoliday || dateStr > todayStr()) ? 0 : 480;
     let balance = workedMins - reqMins;
-
     if (isRunning && reqMins > 0) {
-      let lastStart = parseTime(punches[punches.length - 1]);
-      let fixedWorked = 0;
-      for (let i = 0; i < punches.length - 1; i += 2) {
-        fixedWorked += (parseTime(punches[i+1]) - parseTime(punches[i]));
-      }
+      let lastStart = parseTime(punches[punches.length - 1]); let fixedWorked = 0;
+      for (let i = 0; i < punches.length - 1; i += 2) fixedWorked += (parseTime(punches[i+1]) - parseTime(punches[i]));
       let remaining = reqMins - fixedWorked;
-      if (remaining > 0) {
-        expectedEnd = lastStart + remaining;
-      }
+      if (remaining > 0) expectedEnd = lastStart + remaining;
     }
     return { workedMins, balance, expectedEnd, isRunning, reqMins };
   }
 
   const punchCurrent = () => {
-    const d = todayStr();
-    const h = String(nowDate.getHours()).padStart(2, '0');
-    const m = String(nowDate.getMinutes()).padStart(2, '0');
+    const d = todayStr(); const h = String(nowDate.getHours()).padStart(2, '0'); const m = String(nowDate.getMinutes()).padStart(2, '0');
     addPunch(d, `${h}:${m}`);
   }
 
@@ -1446,8 +1172,7 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
 
   const removePunch = (date, idx) => {
     setTimesheet(prev => {
-      const day = prev.days[date];
-      const newPunches = day.punches.filter((_, i) => i !== idx);
+      const day = prev.days[date]; const newPunches = day.punches.filter((_, i) => i !== idx);
       return { ...prev, days: { ...prev.days, [date]: { ...day, punches: newPunches } } };
     });
   }
@@ -1468,24 +1193,14 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
 
   const addAbsences = () => {
     if (!absenceForm.startDate || !absenceForm.endDate) return;
-    let current = new Date(absenceForm.startDate + "T12:00:00");
-    const end = new Date(absenceForm.endDate + "T12:00:00");
-
+    let current = new Date(absenceForm.startDate + "T12:00:00"); const end = new Date(absenceForm.endDate + "T12:00:00");
     if (current > end) return; 
-
     setTimesheet(prev => {
-        const newDays = { ...prev.days };
-        let loopDate = new Date(current);
-        
+        const newDays = { ...prev.days }; let loopDate = new Date(current);
         while (loopDate <= end) {
             const dateStr = loopDate.toISOString().split("T")[0];
             const existingDay = newDays[dateStr] || { punches: [], isHoliday: false, obs: "" };
-            
-            newDays[dateStr] = {
-                ...existingDay,
-                isHoliday: true, 
-                obs: existingDay.obs ? `${existingDay.obs}\n${absenceForm.type}: ${absenceForm.description}` : `${absenceForm.type}${absenceForm.description ? ' - ' + absenceForm.description : ''}`
-            };
+            newDays[dateStr] = { ...existingDay, isHoliday: true, obs: existingDay.obs ? `${existingDay.obs}\n${absenceForm.type}: ${absenceForm.description}` : `${absenceForm.type}${absenceForm.description ? ' - ' + absenceForm.description : ''}` };
             loopDate.setDate(loopDate.getDate() + 1);
         }
         return { ...prev, days: newDays };
@@ -1495,119 +1210,72 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
   }
 
   const saveAdjustment = () => {
-    const h = parseInt(adjForm.hours || "0", 10);
-    const m = parseInt(adjForm.minutes || "0", 10);
+    const h = parseInt(adjForm.hours || "0", 10); const m = parseInt(adjForm.minutes || "0", 10);
     if (h === 0 && m === 0) return;
-    
-    let totalMins = (h * 60) + m;
-    if (adjForm.type === "subtract") totalMins = -totalMins;
-
+    let totalMins = (h * 60) + m; if (adjForm.type === "subtract") totalMins = -totalMins;
     const newAdj = { id: Date.now(), date: adjForm.date, minutes: totalMins, obs: adjForm.obs };
     setTimesheet(prev => ({ ...prev, adjustments: [newAdj, ...(prev.adjustments || [])] }));
-    setAdjForm({ date: todayStr(), hours: "", minutes: "", type: "subtract", obs: "" });
-    setShowAdj(false);
+    setAdjForm({ date: todayStr(), hours: "", minutes: "", type: "subtract", obs: "" }); setShowAdj(false);
   }
 
-  const removeAdjustment = (id) => {
-    setTimesheet(prev => ({ ...prev, adjustments: prev.adjustments.filter(a => a.id !== id) }));
-  }
+  const removeAdjustment = (id) => setTimesheet(prev => ({ ...prev, adjustments: prev.adjustments.filter(a => a.id !== id) }));
 
-  // ATUALIZADO: Cálculo do Saldo Global e identificação de Meses Únicos
-  let globalBalance = 0;
-  const allDatesSet = new Set([todayStr().substring(0, 7)]); // Assegura que o mês atual sempre apareça
-  
+  let globalBalance = 0; const allDatesSet = new Set([todayStr().substring(0, 7)]);
   Object.keys(timesheet.days).forEach(date => {
-    const day = timesheet.days[date];
-    const calc = calcDay(date, day.punches, day.isHoliday);
-    globalBalance += calc.balance;
-    allDatesSet.add(date.substring(0, 7));
+    const day = timesheet.days[date]; const calc = calcDay(date, day.punches, day.isHoliday); globalBalance += calc.balance; allDatesSet.add(date.substring(0, 7));
   });
-  
-  (timesheet.adjustments || []).forEach(adj => {
-    globalBalance += adj.minutes;
-    allDatesSet.add(adj.date.substring(0, 7));
-  });
-
+  (timesheet.adjustments || []).forEach(adj => { globalBalance += adj.minutes; allDatesSet.add(adj.date.substring(0, 7)); });
   const uniqueMonths = [...allDatesSet].sort((a,b) => b.localeCompare(a));
 
-  // ATUALIZADO: Cálculos específicos para o Mês Selecionado (Saldo Inicial e Saldo Final)
-  let initialMonthBalance = 0;
-  let currentMonthNetBalance = 0;
-
+  let initialMonthBalance = 0; let currentMonthNetBalance = 0;
   Object.keys(timesheet.days).forEach(date => {
-    const calc = calcDay(date, timesheet.days[date].punches, timesheet.days[date].isHoliday);
-    const mStr = date.substring(0, 7);
+    const calc = calcDay(date, timesheet.days[date].punches, timesheet.days[date].isHoliday); const mStr = date.substring(0, 7);
     if (date < selectedMonth + "-01") initialMonthBalance += calc.balance;
     else if (mStr === selectedMonth) currentMonthNetBalance += calc.balance;
   });
-
   (timesheet.adjustments || []).forEach(adj => {
     const mStr = adj.date.substring(0, 7);
     if (adj.date < selectedMonth + "-01") initialMonthBalance += adj.minutes;
     else if (mStr === selectedMonth) currentMonthNetBalance += adj.minutes;
   });
-
   const finalMonthBalance = initialMonthBalance + currentMonthNetBalance;
 
-  // Filtro dos dias para o mês selecionado
-  const daysInMonth = Object.keys(timesheet.days)
-    .filter(date => date.startsWith(selectedMonth))
-    .sort((a,b) => b.localeCompare(a));
-
+  const daysInMonth = Object.keys(timesheet.days).filter(date => date.startsWith(selectedMonth)).sort((a,b) => b.localeCompare(a));
   const todayData = timesheet.days[todayStr()] || { punches: [], isHoliday: false, obs: "" };
   const todayCalc = calcDay(todayStr(), todayData.punches, todayData.isHoliday);
 
   return (
     <div>
       <ModuleHeader title="Controle de Ponto" subtitle="Registro de horas, saldo e previsão de saída" color={color} isMobile={isMobile} />
-
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 20 }}>
-        
-        {/* Card Hoje / Bater Ponto */}
         <div style={{ ...C.card, borderTop: `4px solid ${color}`, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
            <h3 style={{ margin: "0 0 5px", fontSize: 14, color: "#9ca3af" }}>{nowDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
            <div style={{ fontSize: 48, fontWeight: 800, fontFamily: "'Syne', sans-serif", color: "#fff", lineHeight: 1, marginBottom: 20, fontVariantNumeric: "tabular-nums" }}>
              {String(nowDate.getHours()).padStart(2, '0')}:{String(nowDate.getMinutes()).padStart(2, '0')}<span style={{ fontSize: 24, color: "#6b7280" }}>:{String(nowDate.getSeconds()).padStart(2, '0')}</span>
            </div>
-
            <button onClick={punchCurrent} style={{ background: todayCalc.isRunning ? "#ef4444" : color, color: "#fff", border: "none", borderRadius: 30, padding: "16px 32px", fontSize: 16, fontWeight: 800, cursor: "pointer", transition: "all 0.2s", boxShadow: `0 4px 14px ${todayCalc.isRunning ? '#ef444466' : color+'66'}`, marginBottom: 24 }}>
              {todayCalc.isRunning ? "SAÍDA / PAUSA (Bater Ponto)" : "ENTRADA (Bater Ponto)"}
            </button>
-
            <div style={{ display: "flex", width: "100%", gap: 10, justifyContent: "space-between", background: "#0a0b0f", padding: 14, borderRadius: 10 }}>
-              <div>
-                 <p style={{ ...C.lbl, marginBottom: 2 }}>Trabalhado Hoje</p>
-                 <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: color }}>{formatTimeMins(todayCalc.workedMins)}</p>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                 <p style={{ ...C.lbl, marginBottom: 2 }}>Previsão de Saída (8h)</p>
-                 <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: todayCalc.expectedEnd ? "#e8eaf0" : "#6b7280" }}>
-                   {todayCalc.expectedEnd ? formatTimeMins(todayCalc.expectedEnd) : "--:--"}
-                 </p>
-              </div>
+              <div><p style={{ ...C.lbl, marginBottom: 2 }}>Trabalhado Hoje</p><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: color }}>{formatTimeMins(todayCalc.workedMins)}</p></div>
+              <div style={{ textAlign: "right" }}><p style={{ ...C.lbl, marginBottom: 2 }}>Previsão de Saída (8h)</p><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: todayCalc.expectedEnd ? "#e8eaf0" : "#6b7280" }}>{todayCalc.expectedEnd ? formatTimeMins(todayCalc.expectedEnd) : "--:--"}</p></div>
            </div>
         </div>
 
-        {/* Card Banco de Horas Geral */}
         <div style={{ ...C.card, borderTop: `4px solid #3b82f6` }}>
            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
              <p style={{ ...C.lbl, fontSize: 13 }}>Banco de Horas Geral</p>
              <button onClick={() => setShowAdj(!showAdj)} style={{ ...C.btn("#3b82f6"), padding: "6px 12px", fontSize: 11 }}>+ Lançar Ajuste</button>
            </div>
-           
            <div style={{ fontSize: 38, fontWeight: 800, fontFamily: "'Syne', sans-serif", color: globalBalance >= 0 ? color : "#ef4444", marginBottom: 16 }}>
              {formatBalance(globalBalance)} <span style={{ fontSize: 16, fontWeight: 600, color: "#9ca3af" }}>acumuladas</span>
            </div>
-
            {showAdj && (
              <div style={{ background: "#0a0b0f", padding: 12, borderRadius: 8, marginBottom: 16, border: "1px solid #1e2130" }}>
                 <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 10px", color: "#e8eaf0" }}>Novo Lançamento Manual</p>
                 <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                    <input type="date" value={adjForm.date} onChange={e => setAdjForm({...adjForm, date: e.target.value})} style={{ ...C.input, flex: 1 }} />
-                   <select value={adjForm.type} onChange={e => setAdjForm({...adjForm, type: e.target.value})} style={{ ...C.input, flex: 1 }}>
-                     <option value="subtract">Debitar (-) Saída antecipada, Atraso...</option>
-                     <option value="add">Creditar (+) Hora extra por fora...</option>
-                   </select>
+                   <select value={adjForm.type} onChange={e => setAdjForm({...adjForm, type: e.target.value})} style={{ ...C.input, flex: 1 }}><option value="subtract">Debitar (-) Saída antecipada, Atraso...</option><option value="add">Creditar (+) Hora extra por fora...</option></select>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                    <input type="number" placeholder="Horas" value={adjForm.hours} onChange={e => setAdjForm({...adjForm, hours: e.target.value})} style={{ ...C.input, width: 80 }} />
@@ -1620,12 +1288,9 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
                 </div>
              </div>
            )}
-
            <div>
               <p style={{ ...C.lbl, fontSize: 10, borderBottom: "1px solid #1e2130", paddingBottom: 6, marginBottom: 8 }}>Histórico de Ajustes Manuais</p>
-              {(timesheet.adjustments || []).length === 0 ? (
-                <p style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>Nenhum ajuste manual lançado.</p>
-              ) : (
+              {(timesheet.adjustments || []).length === 0 ? <p style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>Nenhum ajuste manual lançado.</p> : (
                 <div style={{ maxHeight: 110, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
                   {(timesheet.adjustments || []).map(adj => (
                     <div key={adj.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0a0b0f", padding: "6px 10px", borderRadius: 6 }}>
@@ -1645,11 +1310,9 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
         </div>
       </div>
 
-      {/* Histórico Diário (Agora com Filtro e Resumo Mensal) */}
       <div style={C.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
            <p style={{ ...C.lbl, fontSize: 13, margin: 0 }}>Histórico de Marcações</p>
-           
            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#0a0b0f", padding: 6, borderRadius: 8, border: "1px solid #1e2130" }}>
                   <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, paddingLeft: 4 }}>+ Retroativo:</span>
@@ -1657,14 +1320,10 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
                   <input type="time" value={retroForm.time} onChange={e => setRetroForm({...retroForm, time: e.target.value})} style={{ ...C.input, padding: "4px 8px", fontSize: 11, width: 90 }} />
                   <button onClick={() => addPunch(retroForm.date, retroForm.time)} style={{ ...C.btn(color), padding: "4px 10px", fontSize: 11 }}>Add</button>
                </div>
-               
-               <button onClick={() => setShowAbsenceForm(!showAbsenceForm)} style={{ ...C.btn(showAbsenceForm ? "#1e2130" : "#a855f7"), padding: "6px 12px", fontSize: 11 }}>
-                 ✈️ Planejar Ausência
-               </button>
+               <button onClick={() => setShowAbsenceForm(!showAbsenceForm)} style={{ ...C.btn(showAbsenceForm ? "#1e2130" : "#a855f7"), padding: "6px 12px", fontSize: 11 }}>✈️ Planejar Ausência</button>
            </div>
         </div>
 
-        {/* Formulário de Férias e Feriados em massa */}
         {showAbsenceForm && (
             <div style={{ background: "#0a0b0f", padding: 12, borderRadius: 8, border: "1px solid #a855f744", marginBottom: 16 }}>
                 <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 10px", color: "#e8eaf0" }}>Planejar Ausências (Férias, Feriados, Licenças)</p>
@@ -1672,12 +1331,7 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
                     <input type="date" value={absenceForm.startDate} onChange={e => setAbsenceForm({...absenceForm, startDate: e.target.value})} style={{ ...C.input, flex: 1, minWidth: 120 }} title="Data de Início" />
                     <span style={{ color: "#6b7280", alignSelf: "center", fontSize: 12 }}>até</span>
                     <input type="date" value={absenceForm.endDate} onChange={e => setAbsenceForm({...absenceForm, endDate: e.target.value})} style={{ ...C.input, flex: 1, minWidth: 120 }} title="Data de Fim" />
-                    <select value={absenceForm.type} onChange={e => setAbsenceForm({...absenceForm, type: e.target.value})} style={{ ...C.input, width: "auto" }}>
-                        <option value="Férias">Férias</option>
-                        <option value="Feriado">Feriado</option>
-                        <option value="Licença">Licença</option>
-                        <option value="Folga">Folga</option>
-                    </select>
+                    <select value={absenceForm.type} onChange={e => setAbsenceForm({...absenceForm, type: e.target.value})} style={{ ...C.input, width: "auto" }}><option value="Férias">Férias</option><option value="Feriado">Feriado</option><option value="Licença">Licença</option><option value="Folga">Folga</option></select>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                     <input placeholder="Descrição opcional..." value={absenceForm.description} onChange={e => setAbsenceForm({...absenceForm, description: e.target.value})} style={{ ...C.input, flex: 1 }} />
@@ -1686,59 +1340,37 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
             </div>
         )}
 
-        {/* ATUALIZADO: VISUALIZAÇÃO MENSAL E SELETOR */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#12141a", border: "1px solid #1e2130", borderRadius: 8, padding: "12px 16px", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
            <div style={{ flex: 1, minWidth: 100 }}>
               <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Saldo Inicial</p>
               <p style={{ fontSize: 16, fontWeight: 800, color: initialMonthBalance >= 0 ? color : "#ef4444", margin: 0 }}>{formatBalance(initialMonthBalance)}</p>
            </div>
-           
            <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={{ ...C.input, width: "auto", flex: "1 1 150px", textAlign: "center", fontWeight: 700, fontSize: 14, background: "#0a0b0f" }}>
               {uniqueMonths.map(m => {
-                 const [y, mo] = m.split("-");
-                 const dateObj = new Date(y, mo - 1, 1);
+                 const [y, mo] = m.split("-"); const dateObj = new Date(y, mo - 1, 1);
                  const label = dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
                  return <option key={m} value={m}>{label.charAt(0).toUpperCase() + label.slice(1)}</option>
               })}
            </select>
-
            <div style={{ flex: 1, minWidth: 100, textAlign: "right" }}>
               <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Saldo Final</p>
               <p style={{ fontSize: 16, fontWeight: 800, color: finalMonthBalance >= 0 ? color : "#ef4444", margin: 0 }}>{formatBalance(finalMonthBalance)}</p>
            </div>
         </div>
 
-        {daysInMonth.length === 0 ? (
-          <p style={{ textAlign: "center", color: "#6b7280", padding: 30 }}>Nenhuma marcação registrada neste mês.</p>
-        ) : (
+        {daysInMonth.length === 0 ? <p style={{ textAlign: "center", color: "#6b7280", padding: 30 }}>Nenhuma marcação registrada neste mês.</p> : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {daysInMonth.map(date => {
-               const dayObj = timesheet.days[date];
-               const calc = calcDay(date, dayObj.punches, dayObj.isHoliday);
-               const isFutureDay = date > todayStr();
-
+               const dayObj = timesheet.days[date]; const calc = calcDay(date, dayObj.punches, dayObj.isHoliday); const isFutureDay = date > todayStr();
                return (
                  <div key={date} style={{ background: "#0a0b0f", border: "1px solid #1e2130", borderRadius: 8, padding: 12, display: "flex", flexDirection: isMobile ? "column" : "row", gap: 16, alignItems: isMobile ? "stretch" : "flex-start" }}>
-                   
-                   {/* Date Block */}
                    <div style={{ width: 100, flexShrink: 0 }}>
-                      <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: date === todayStr() ? color : (isFutureDay ? "#a855f7" : "#e8eaf0") }}>
-                        {date.split('-').reverse().join('/')}
-                      </p>
-                      <p style={{ margin: "0 0 6px", fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>
-                        {new Date(date+"T12:00:00").toLocaleDateString('pt-BR', { weekday: 'short' })}
-                        {isFutureDay && <span style={{ color: "#a855f7", display: "block", marginTop: 2 }}>(Previsão)</span>}
-                      </p>
-                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#9ca3af", cursor: "pointer" }}>
-                        <input type="checkbox" checked={dayObj.isHoliday} onChange={() => toggleHoliday(date)} /> Feriado
-                      </label>
+                      <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: date === todayStr() ? color : (isFutureDay ? "#a855f7" : "#e8eaf0") }}>{date.split('-').reverse().join('/')}</p>
+                      <p style={{ margin: "0 0 6px", fontSize: 10, color: "#6b7280", textTransform: "uppercase" }}>{new Date(date+"T12:00:00").toLocaleDateString('pt-BR', { weekday: 'short' })}{isFutureDay && <span style={{ color: "#a855f7", display: "block", marginTop: 2 }}>(Previsão)</span>}</p>
+                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#9ca3af", cursor: "pointer" }}><input type="checkbox" checked={dayObj.isHoliday} onChange={() => toggleHoliday(date)} /> Feriado</label>
                    </div>
-
-                   {/* Punches & Observations Block */}
                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-                      {dayObj.punches.length === 0 ? (
-                        <span style={{ fontSize: 12, color: "#4b5563", fontStyle: "italic" }}>Sem marcações</span>
-                      ) : (
+                      {dayObj.punches.length === 0 ? <span style={{ fontSize: 12, color: "#4b5563", fontStyle: "italic" }}>Sem marcações</span> : (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                           {dayObj.punches.map((p, idx) => (
                              <div key={idx} style={{ display: "flex", alignItems: "center", background: "#1e2130", padding: "4px 8px", borderRadius: 6, gap: 6, border: `1px solid ${idx % 2 === 0 ? color+'44' : '#ef444444'}` }}>
@@ -1748,44 +1380,14 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
                           ))}
                         </div>
                       )}
-                      
-                      {calc.isRunning && (
-                        <p style={{ fontSize: 11, color: "#ef4444", margin: "0", fontWeight: 600 }}>Ponto Aberto - Trabalhando agora...</p>
-                      )}
-
-                      <textarea
-                          placeholder="Comentários/Observações (ex: motivo de hora extra, atestado, folga, etc)..."
-                          value={dayObj.obs || ""}
-                          onChange={(e) => updateDayObs(date, e.target.value)}
-                          style={{
-                              ...C.input,
-                              minHeight: 40,
-                              fontSize: 11,
-                              resize: "vertical",
-                              background: "#12141a",
-                              padding: "6px 10px",
-                              border: "1px dashed #2a2f40",
-                              color: "#9ca3af"
-                          }}
-                      />
+                      {calc.isRunning && <p style={{ fontSize: 11, color: "#ef4444", margin: "0", fontWeight: 600 }}>Ponto Aberto - Trabalhando agora...</p>}
+                      <textarea placeholder="Comentários/Observações (ex: motivo de hora extra, atestado, folga, etc)..." value={dayObj.obs || ""} onChange={(e) => updateDayObs(date, e.target.value)} style={{ ...C.input, minHeight: 40, fontSize: 11, resize: "vertical", background: "#12141a", padding: "6px 10px", border: "1px dashed #2a2f40", color: "#9ca3af" }} />
                    </div>
-
-                   {/* Totals Block */}
                    <div style={{ width: isMobile ? "100%" : 180, display: "flex", flexDirection: "column", gap: 6, borderLeft: isMobile ? "none" : "1px solid #1e2130", paddingTop: isMobile ? 10 : 0, paddingLeft: isMobile ? 0 : 16, borderTop: isMobile ? "1px solid #1e2130" : "none" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                         <span style={{ fontSize: 11, color: "#9ca3af" }}>Trabalhado:</span>
-                         <span style={{ fontSize: 12, fontWeight: 700 }}>{formatTimeMins(calc.workedMins)}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                         <span style={{ fontSize: 11, color: "#9ca3af" }}>Meta Diária:</span>
-                         <span style={{ fontSize: 12, fontWeight: 700 }}>{formatTimeMins(calc.reqMins)} {calc.reqMins === 0 && <span style={{fontSize:9, color:"#a855f7"}}>(100% Extra)</span>}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", background: calc.balance > 0 ? `${color}18` : calc.balance < 0 ? "#ef444418" : "#1e2130", padding: "4px 8px", borderRadius: 4 }}>
-                         <span style={{ fontSize: 11, fontWeight: 600, color: calc.balance > 0 ? color : calc.balance < 0 ? "#ef4444" : "#e8eaf0" }}>Saldo Dia:</span>
-                         <span style={{ fontSize: 12, fontWeight: 800, color: calc.balance > 0 ? color : calc.balance < 0 ? "#ef4444" : "#e8eaf0" }}>{formatBalance(calc.balance)}</span>
-                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 11, color: "#9ca3af" }}>Trabalhado:</span><span style={{ fontSize: 12, fontWeight: 700 }}>{formatTimeMins(calc.workedMins)}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 11, color: "#9ca3af" }}>Meta Diária:</span><span style={{ fontSize: 12, fontWeight: 700 }}>{formatTimeMins(calc.reqMins)} {calc.reqMins === 0 && <span style={{fontSize:9, color:"#a855f7"}}>(100% Extra)</span>}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", background: calc.balance > 0 ? `${color}18` : calc.balance < 0 ? "#ef444418" : "#1e2130", padding: "4px 8px", borderRadius: 4 }}><span style={{ fontSize: 11, fontWeight: 600, color: calc.balance > 0 ? color : calc.balance < 0 ? "#ef4444" : "#e8eaf0" }}>Saldo Dia:</span><span style={{ fontSize: 12, fontWeight: 800, color: calc.balance > 0 ? color : calc.balance < 0 ? "#ef4444" : "#e8eaf0" }}>{formatBalance(calc.balance)}</span></div>
                    </div>
-
                  </div>
                )
             })}
@@ -1803,52 +1405,28 @@ function IndicatorsModule({ indicators, setIndicators, isMobile }) {
   const [tab, setTab] = useState("Pessoal")
   const [editingId, setEditingId] = useState(null)
   const [showHistory, setShowHistory] = useState(null)
-  
   const [form, setForm] = useState({ name: "", category: "Pessoal", value: 0, target: 100, unit: "%" })
   const [updateVals, setUpdateVals] = useState({})
 
   const CATS = ["Pessoal", "Regulatório", "Squad"]
 
-  const openNew = () => {
-    setForm({ name: "", category: tab, value: 0, target: 100, unit: "%" })
-    setEditingId(null)
-    setShowForm(true)
-  }
-
-  const openEdit = (ind) => {
-    setForm({ name: ind.name, category: ind.category, value: ind.value, target: ind.target, unit: ind.unit })
-    setEditingId(ind.id)
-    setShowForm(true)
-  }
-
+  const openNew = () => { setForm({ name: "", category: tab, value: 0, target: 100, unit: "%" }); setEditingId(null); setShowForm(true) }
+  const openEdit = (ind) => { setForm({ name: ind.name, category: ind.category, value: ind.value, target: ind.target, unit: ind.unit }); setEditingId(ind.id); setShowForm(true) }
+  
   const saveForm = () => {
     if (!form.name.trim()) return
-    if (editingId) {
-      setIndicators(prev => prev.map(i => i.id === editingId ? { ...i, ...form, value: Number(form.value), target: Number(form.target) } : i))
-    } else {
-      setIndicators(prev => [...prev, { ...form, id: Date.now(), value: Number(form.value), target: Number(form.target), history: [] }])
-    }
+    if (editingId) setIndicators(prev => prev.map(i => i.id === editingId ? { ...i, ...form, value: Number(form.value), target: Number(form.target) } : i))
+    else setIndicators(prev => [...prev, { ...form, id: Date.now(), value: Number(form.value), target: Number(form.target), history: [] }])
     setShowForm(false)
   }
 
   const updateIndicator = (id) => {
-    const d = updateVals[id] || {}
-    const newVal = Number(d.value)
-    
-    // Check se enviou um novo valor numérico
-    const hasNewVal = d.value !== undefined && d.value !== "" && !isNaN(newVal)
-    // Check se enviou uma nota
-    const hasNote = d.note && d.note.trim() !== ""
-
-    if (!hasNewVal && !hasNote) return // Nada a atualizar
-    
+    const d = updateVals[id] || {}; const newVal = Number(d.value); const hasNewVal = d.value !== undefined && d.value !== "" && !isNaN(newVal); const hasNote = d.note && d.note.trim() !== ""
+    if (!hasNewVal && !hasNote) return
     const updateDate = d.date || todayStr()
-
     setIndicators(prev => prev.map(i => {
       if (i.id === id) {
-        // Se preencheu valor novo usa ele, senão mantém o valor atual
-        const finalVal = hasNewVal ? newVal : i.value;
-        const diff = finalVal - i.value;
+        const finalVal = hasNewVal ? newVal : i.value; const diff = finalVal - i.value;
         const histItem = { id: Date.now(), date: updateDate, value: finalVal, diff, note: d.note || "" }
         return { ...i, value: finalVal, history: [histItem, ...(i.history || [])] }
       }
@@ -1857,10 +1435,7 @@ function IndicatorsModule({ indicators, setIndicators, isMobile }) {
     setUpdateVals(prev => ({ ...prev, [id]: { value: "", date: "", note: "" } }))
   }
 
-  const updateLocalVal = (id, field, val) => {
-    setUpdateVals(prev => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: val } }))
-  }
-
+  const updateLocalVal = (id, field, val) => setUpdateVals(prev => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: val } }))
   const deleteInd = (id) => setIndicators(prev => prev.filter(i => i.id !== id))
 
   const getStatus = (value, target) => {
@@ -1874,9 +1449,7 @@ function IndicatorsModule({ indicators, setIndicators, isMobile }) {
 
   return (
     <div>
-      <ModuleHeader title="Indicadores" subtitle="KPIs e acompanhamento de metas" color={color} isMobile={isMobile}
-        action={<button onClick={openNew} style={C.btn(color)}>+ KPI</button>} />
-
+      <ModuleHeader title="Indicadores" subtitle="KPIs e acompanhamento de metas" color={color} isMobile={isMobile} action={<button onClick={openNew} style={C.btn(color)}>+ KPI</button>} />
       <ScrollTabs tabs={CATS.map(c => ({ id: c, label: c }))} active={tab} onSelect={(id) => { setTab(id); setShowForm(false) }} color={color} />
 
       {showForm && (
@@ -1884,30 +1457,20 @@ function IndicatorsModule({ indicators, setIndicators, isMobile }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
             <input placeholder="Nome do indicador *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={C.input} />
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1fr", gap: 10 }}>
-              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} style={{ ...C.input, appearance: "none" }}>
-                {CATS.map(c => <option key={c}>{c}</option>)}
-              </select>
+              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} style={{ ...C.input, appearance: "none" }}>{CATS.map(c => <option key={c}>{c}</option>)}</select>
               <input placeholder="Unidade (%...)" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} style={C.input} title="Unidade" />
               <input type="number" placeholder="Valor atual" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} style={C.input} title="Valor Atual" />
               <input type="number" placeholder="Meta" value={form.target} onChange={e => setForm({ ...form, target: e.target.value })} style={C.input} title="Meta" />
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={saveForm} style={C.btn(color)}>Salvar</button>
-            <button onClick={() => setShowForm(false)} style={C.btn("#1e2130")}>Cancelar</button>
-          </div>
+          <div style={{ display: "flex", gap: 8 }}><button onClick={saveForm} style={C.btn(color)}>Salvar</button><button onClick={() => setShowForm(false)} style={C.btn("#1e2130")}>Cancelar</button></div>
         </div>
       )}
 
-      {currentInds.length === 0 ? (
-        <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>Nenhum indicador em {tab}</div>
-      ) : (
+      {currentInds.length === 0 ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>Nenhum indicador em {tab}</div> : (
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(320px,1fr))", gap: 12 }}>
           {currentInds.map(ind => {
-            const pct    = Math.min(100, Math.round((ind.value / ind.target) * 100))
-            const status = getStatus(ind.value, ind.target)
-            const upData = updateVals[ind.id] || {}
-            
+            const pct = Math.min(100, Math.round((ind.value / ind.target) * 100)); const status = getStatus(ind.value, ind.target); const upData = updateVals[ind.id] || {}
             return (
               <div key={ind.id} style={{ ...C.card, borderLeft: `4px solid ${status.color}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
@@ -1918,36 +1481,20 @@ function IndicatorsModule({ indicators, setIndicators, isMobile }) {
                   </div>
                 </div>
                 <p style={{ fontSize: 11, color: status.color, margin: "0 0 12px" }}>{status.label}</p>
-                
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
-                  <span style={{ fontSize: 24, fontWeight: 800, color: status.color }}>{ind.value}</span>
-                  <span style={{ color: "#4b5563", fontSize: 12 }}>/ {ind.target} {ind.unit}</span>
-                </div>
-                
-                <div style={{ height: 7, background: "#1e2130", borderRadius: 4, marginBottom: 8 }}>
-                  <div style={{ height: "100%", width: `${pct}%`, background: status.color, borderRadius: 4, transition: "width 0.5s ease" }} />
-                </div>
-                
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}><span style={{ fontSize: 24, fontWeight: 800, color: status.color }}>{ind.value}</span><span style={{ color: "#4b5563", fontSize: 12 }}>/ {ind.target} {ind.unit}</span></div>
+                <div style={{ height: 7, background: "#1e2130", borderRadius: 4, marginBottom: 8 }}><div style={{ height: "100%", width: `${pct}%`, background: status.color, borderRadius: 4, transition: "width 0.5s ease" }} /></div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>{pct}% da meta</p>
-                  <button onClick={() => setShowHistory(showHistory === ind.id ? null : ind.id)} style={{ background: "none", border: "none", color: "#3b82f6", fontSize: 10, cursor: "pointer", padding: 0 }}>
-                    {showHistory === ind.id ? "Ocultar Histórico" : "Ver Histórico"}
-                  </button>
+                  <button onClick={() => setShowHistory(showHistory === ind.id ? null : ind.id)} style={{ background: "none", border: "none", color: "#3b82f6", fontSize: 10, cursor: "pointer", padding: 0 }}>{showHistory === ind.id ? "Ocultar Histórico" : "Ver Histórico"}</button>
                 </div>
-
                 {showHistory === ind.id && (
                   <div style={{ background: "#0a0b0f", borderRadius: 8, padding: 10, marginBottom: 12 }}>
                     <span style={C.lbl}>Histórico de Avanços</span>
-                    {(ind.history || []).length === 0 ? (
-                      <p style={{ fontSize: 11, color: "#4b5563", margin: "4px 0" }}>Nenhum registro.</p>
-                    ) : (
+                    {(ind.history || []).length === 0 ? <p style={{ fontSize: 11, color: "#4b5563", margin: "4px 0" }}>Nenhum registro.</p> : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 150, overflowY: "auto" }}>
                         {ind.history.map(h => (
                            <div key={h.id} style={{ display: "flex", flexDirection: "column", fontSize: 11, borderBottom: "1px solid #1e2130", paddingBottom: 6 }}>
-                             <div style={{ display: "flex", justifyContent: "space-between" }}>
-                               <span style={{ color: "#9ca3af" }}>{h.date.split("-").reverse().join("/")}</span>
-                               <span style={{ fontWeight: 600 }}>Valor: {h.value} <span style={{ color: h.diff >= 0 ? "#22c55e" : "#ef4444" }}>({h.diff > 0 ? '+' : ''}{h.diff})</span></span>
-                             </div>
+                             <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#9ca3af" }}>{h.date.split("-").reverse().join("/")}</span><span style={{ fontWeight: 600 }}>Valor: {h.value} <span style={{ color: h.diff >= 0 ? "#22c55e" : "#ef4444" }}>({h.diff > 0 ? '+' : ''}{h.diff})</span></span></div>
                              {h.note && <span style={{ color: "#6b7280", marginTop: 3, fontStyle: "italic", whiteSpace: "pre-wrap" }}>{h.note}</span>}
                            </div>
                         ))}
@@ -1955,13 +1502,10 @@ function IndicatorsModule({ indicators, setIndicators, isMobile }) {
                     )}
                   </div>
                 )}
-
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, background: "#1e2130", padding: 8, borderRadius: 8 }}>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <input type="number" placeholder="Novo valor (Opcional)" value={upData.value ?? ""} onChange={e => updateLocalVal(ind.id, 'value', e.target.value)} onKeyDown={e => e.key === 'Enter' && updateIndicator(ind.id)}
-                           style={{ ...C.input, width: 130, padding: "5px 8px", fontSize: 11 }} />
-                    <input type="date" value={upData.date ?? ""} onChange={e => updateLocalVal(ind.id, 'date', e.target.value)}
-                           style={{ ...C.input, flex: 1, padding: "5px 8px", fontSize: 11 }} />
+                    <input type="number" placeholder="Novo valor (Opcional)" value={upData.value ?? ""} onChange={e => updateLocalVal(ind.id, 'value', e.target.value)} onKeyDown={e => e.key === 'Enter' && updateIndicator(ind.id)} style={{ ...C.input, width: 130, padding: "5px 8px", fontSize: 11 }} />
+                    <input type="date" value={upData.date ?? ""} onChange={e => updateLocalVal(ind.id, 'date', e.target.value)} style={{ ...C.input, flex: 1, padding: "5px 8px", fontSize: 11 }} />
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input placeholder="Apenas Observação/Entrega (Opcional)" value={upData.note ?? ""} onChange={e => updateLocalVal(ind.id, 'note', e.target.value)} onKeyDown={e => e.key === 'Enter' && updateIndicator(ind.id)} style={{ ...C.input, flex: 1, padding: "5px 8px", fontSize: 11 }} />
@@ -1986,8 +1530,7 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   
-  // ATUALIZADO: Gerenciamento de Tipos agora possui modos 'list' ou 'form'
-  const [manageMode, setManageMode] = useState(null) // null | 'list' | 'form'
+  const [manageMode, setManageMode] = useState(null) 
   const [typeForm, setTypeForm] = useState({ name: "", icon: "📄", fields: [] })
 
   const [searchQ, setSearchQ] = useState("")
@@ -2017,24 +1560,20 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
 
   const saveNote = () => {
     let finalTitle = form.title;
-    
-    // Se for um tipo customizado, o título vira o valor do primeiro campo obrigatoriamente
     if (currentCustomType) {
       const firstFieldId = currentCustomType.fields[0]?.id;
       finalTitle = form.customFields[firstFieldId] || "Sem título definido";
     }
 
     if (!finalTitle.trim() && !currentCustomType) return
-    if (currentCustomType && (!form.customFields[currentCustomType.fields[0]?.id] || !form.customFields[currentCustomType.fields[0]?.id].trim())) return; // Exige primeiro campo preenchido
+    if (currentCustomType && (!form.customFields[currentCustomType.fields[0]?.id] || !form.customFields[currentCustomType.fields[0]?.id].trim())) return;
 
     const tagsArr = form.tags.split(",").map(t => t.trim()).filter(Boolean)
     const newNote = { ...form, title: finalTitle, tags: tagsArr }
     
-    if (editingId) {
-      setNotes(prev => ({ ...prev, [tab]: (prev[tab]||[]).map(n => n.id === editingId ? { ...n, ...newNote } : n) }))
-    } else {
-      setNotes(prev => ({ ...prev, [tab]: [{ id: Date.now(), ...newNote }, ...(prev[tab]||[])] }))
-    }
+    if (editingId) setNotes(prev => ({ ...prev, [tab]: (prev[tab]||[]).map(n => n.id === editingId ? { ...n, ...newNote } : n) }))
+    else setNotes(prev => ({ ...prev, [tab]: [{ id: Date.now(), ...newNote }, ...(prev[tab]||[])] }))
+    
     setShowForm(false)
   }
 
@@ -2046,40 +1585,36 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
     
     setNoteSettings(prev => {
        const exists = (prev.customTypes || []).find(t => t.id === newType.id);
-       if (exists) {
-          return { ...prev, customTypes: prev.customTypes.map(t => t.id === newType.id ? newType : t) };
-       } else {
-          return { ...prev, customTypes: [...(prev.customTypes || []), newType] };
-       }
+       if (exists) return { ...prev, customTypes: prev.customTypes.map(t => t.id === newType.id ? newType : t) };
+       return { ...prev, customTypes: [...(prev.customTypes || []), newType] };
     });
     setManageMode('list');
   }
+
+  // Função para mover o campo no array (para cima ou para baixo)
+  const moveField = (index, direction) => {
+    const newFields = [...typeForm.fields];
+    if (index + direction < 0 || index + direction >= newFields.length) return;
+    const temp = newFields[index];
+    newFields[index] = newFields[index + direction];
+    newFields[index + direction] = temp;
+    setTypeForm({...typeForm, fields: newFields});
+  };
   
   const deleteNote = (id) => setNotes(prev => ({ ...prev, [tab]: prev[tab].filter(n => n.id !== id) }))
   
   const rawCurrent = notes[tab] || []
-  
   const current = rawCurrent.filter(n => {
     if(!searchQ.trim()) return true
     const q = searchQ.toLowerCase()
-    
     let matchesCustom = false;
-    if (n.customFields) {
-      matchesCustom = Object.values(n.customFields).some(val => String(val).toLowerCase().includes(q))
-    }
-
-    return (n.title && n.title.toLowerCase().includes(q)) || 
-           (n.content && n.content.toLowerCase().includes(q)) ||
-           (n.tags && n.tags.some(t => t.toLowerCase().includes(q))) ||
-           (n.team && n.team.toLowerCase().includes(q)) ||
-           (n.person && n.person.toLowerCase().includes(q)) ||
-           matchesCustom
+    if (n.customFields) matchesCustom = Object.values(n.customFields).some(val => String(val).toLowerCase().includes(q))
+    return (n.title && n.title.toLowerCase().includes(q)) || (n.content && n.content.toLowerCase().includes(q)) || (n.tags && n.tags.some(t => t.toLowerCase().includes(q))) || (n.team && n.team.toLowerCase().includes(q)) || (n.person && n.person.toLowerCase().includes(q)) || matchesCustom
   })
 
   return (
     <div>
-      <ModuleHeader title="Notas & Docs" subtitle="Reuniões, feedbacks, templates e anotações gerais" color={color} isMobile={isMobile}
-        action={<button onClick={openNew} style={C.btn(color)}>+ Novo Documento</button>} />
+      <ModuleHeader title="Notas & Docs" subtitle="Reuniões, feedbacks, templates e anotações gerais" color={color} isMobile={isMobile} action={<button onClick={openNew} style={C.btn(color)}>+ Novo Documento</button>} />
 
       <div style={{ marginBottom: 16 }}>
          <input placeholder="Busca inteligente (título, conteúdo, campos customizados ou tags)..." value={searchQ} onChange={e => setSearchQ(e.target.value)} style={{ ...C.input, background: "#12141a" }} />
@@ -2107,15 +1642,11 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
               <div key={f.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <div style={{ width: 24, textAlign: "center", color: "#6b7280", fontSize: 12 }}>{i + 1}.</div>
                 <input placeholder="Nome do campo" value={f.name} onChange={e => {
-                   const newFields = [...typeForm.fields];
-                   newFields[i].name = e.target.value;
-                   setTypeForm({...typeForm, fields: newFields});
+                   const newFields = [...typeForm.fields]; newFields[i].name = e.target.value; setTypeForm({...typeForm, fields: newFields});
                 }} style={{...C.input, flex: 1}} />
                 
                 <select value={f.type || 'text'} onChange={e => {
-                   const newFields = [...typeForm.fields];
-                   newFields[i].type = e.target.value;
-                   setTypeForm({...typeForm, fields: newFields});
+                   const newFields = [...typeForm.fields]; newFields[i].type = e.target.value; setTypeForm({...typeForm, fields: newFields});
                 }} style={{ ...C.input, width: isMobile ? 110 : 130 }}>
                    <option value="text">Texto Curto</option>
                    <option value="textarea">Descrição</option>
@@ -2123,9 +1654,12 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
                    <option value="date">Data</option>
                 </select>
                 
-                <button onClick={() => {
-                   setTypeForm({...typeForm, fields: typeForm.fields.filter(field => field.id !== f.id)})
-                }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }}>✕</button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "center", justifyContent: "center" }}>
+                   <button onClick={() => moveField(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#4b5563" : "#9ca3af", cursor: i === 0 ? "default" : "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>▲</button>
+                   <button onClick={() => moveField(i, 1)} disabled={i === typeForm.fields.length - 1} style={{ background: "none", border: "none", color: i === typeForm.fields.length - 1 ? "#4b5563" : "#9ca3af", cursor: i === typeForm.fields.length - 1 ? "default" : "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>▼</button>
+                </div>
+
+                <button onClick={() => setTypeForm({...typeForm, fields: typeForm.fields.filter(field => field.id !== f.id)})} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }}>✕</button>
               </div>
            ))}
            <button onClick={() => setTypeForm({...typeForm, fields: [...typeForm.fields, { id: Date.now(), name: "", type: "text" }]})} style={{ ...C.btn("transparent"), fontSize: 11, marginBottom: 16, padding: "6px 0" }}>+ Adicionar mais um campo</button>
@@ -2143,10 +1677,7 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
                <span style={{...C.lbl, margin: 0}}>Gerenciar Tipos de Notas</span>
                <button onClick={() => { setTypeForm({ name: "", icon: ICONS[0], fields: [{ id: Date.now(), name: "Título / Nome do Documento", type: "text" }] }); setManageMode('form'); }} style={{ ...C.btn(color), fontSize: 11, padding: "6px 12px" }}>+ Novo Tipo</button>
             </div>
-
-            {(noteSettings?.customTypes || []).length === 0 ? (
-               <p style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>Nenhum tipo personalizado criado ainda.</p>
-            ) : (
+            {(noteSettings?.customTypes || []).length === 0 ? <p style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>Nenhum tipo personalizado criado ainda.</p> : (
                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {(noteSettings?.customTypes || []).map(ct => (
                      <div key={ct.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0a0b0f", padding: "10px 14px", borderRadius: 8, border: "1px solid #2a2f40" }}>
@@ -2170,7 +1701,6 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
                   ))}
                </div>
             )}
-            
             <div style={{ marginTop: 16, paddingTop: 10, borderTop: "1px solid #2a2f40" }}>
                <button onClick={() => setManageMode(null)} style={C.btn("#1e2130")}>Fechar Configurações</button>
             </div>
@@ -2180,17 +1710,11 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
       {showForm && !manageMode && (
         <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            
-            {/* FORMULÁRIO DINÂMICO PARA TIPOS CUSTOMIZADOS */}
             {currentCustomType ? (
                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {currentCustomType.fields.map((f, idx) => (
                      <div key={f.id}>
-                        <span style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4, display: "block" }}>
-                           {f.name} {idx === 0 && <span style={{color: color}}>(Título da Nota) *</span>}
-                        </span>
-                        
-                        {/* RENDERIZAÇÃO DO INPUT BASEADA NO TIPO DE CAMPO */}
+                        <span style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4, display: "block" }}>{f.name} {idx === 0 && <span style={{color: color}}>(Título da Nota) *</span>}</span>
                         {f.type === 'textarea' ? (
                             <textarea placeholder={`Preencha o campo '${f.name}'...`} value={form.customFields[f.id] || ""} onChange={e => setForm({...form, customFields: {...form.customFields, [f.id]: e.target.value}})} style={{ ...C.input, minHeight: 60, resize: "vertical" }} />
                         ) : (
@@ -2204,8 +1728,6 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
                   </div>
                </div>
             ) : 
-            
-            /* FORMULÁRIOS PADRÕES DO SISTEMA */
             tab === "changes" ? (
               <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
                 <input placeholder="Número da Change (ex: CHG-123) *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} style={{ ...C.input, flex: 1 }} />
@@ -2222,10 +1744,7 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
                     <input placeholder="Data (DD/MM/AAAA)" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} style={{ ...C.input, width: isMobile ? "100%" : 140 }} />
                   </div>
                   <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
-                    <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={{ ...C.input, width: isMobile ? "100%" : 140 }}>
-                      <option value="Recebido">Recebido</option>
-                      <option value="Dado">Dado</option>
-                    </select>
+                    <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={{ ...C.input, width: isMobile ? "100%" : 140 }}><option value="Recebido">Recebido</option><option value="Dado">Dado</option></select>
                     <input placeholder="Nome da pessoa relacionada *" value={form.person} onChange={e => setForm({ ...form, person: e.target.value })} style={{ ...C.input, flex: 1 }} />
                   </div>
                </div>
@@ -2236,12 +1755,10 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
               </div>
             )}
             
-            {/* RENDERIZA OS CAMPOS FIXOS APENAS SE FOR UMA ABA PADRÃO */}
             {!currentCustomType && (
                <>
                  <input placeholder="Tags para busca (separadas por vírgula)" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} style={C.input} />
-                 <textarea placeholder={tab === "changes" ? "Itens entregues..." : tab === "feedbacks" ? "Pontos fortes e oportunidades detalhadas..." : "Conteúdo detalhado..."} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })}
-                   style={{ ...C.input, minHeight: 100, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} />
+                 <textarea placeholder={tab === "changes" ? "Itens entregues..." : tab === "feedbacks" ? "Pontos fortes e oportunidades detalhadas..." : "Conteúdo detalhado..."} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} style={{ ...C.input, minHeight: 100, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} />
                </>
             )}
             
@@ -2253,12 +1770,9 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
         </div>
       )}
 
-      {/* LISTAGEM DE NOTAS */}
       {!manageMode && (
          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-           {current.length === 0
-             ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>Nenhum documento encontrado nesta aba.</div>
-             : current.map(note => (
+           {current.length === 0 ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>Nenhum documento encontrado nesta aba.</div> : current.map(note => (
                <div key={note.id} style={{ ...C.card, borderLeft: `4px solid ${color}` }}>
                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                    <div>
@@ -2276,11 +1790,9 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
                    </div>
                  </div>
 
-                 {/* Renderização Dinâmica de Campos vs Texto Padrão */}
                  {currentCustomType ? (
                     <div style={{ marginTop: 10, borderTop: "1px solid #1e2130", paddingTop: 10 }}>
                       {currentCustomType.fields.map((f, idx) => {
-                         // Pula a renderização do primeiro campo no corpo (pois ele já é o Título lá em cima)
                          if (idx === 0) return null;
                          return note.customFields && note.customFields[f.id] ? (
                           <div key={f.id} style={{ marginBottom: 12 }}>
@@ -2311,22 +1823,19 @@ function MainApp({ user }) {
   
   const [teams, setTeams, tLoaded] = useSyncedState("teams", INIT_TEAMS, user);
   const [tasks, setTasks, tkLoaded] = useSyncedState("tasks", INIT_TASKS, user);
-  const [interruptions, setInterruptions, intLoaded] = useSyncedState("interruptions", [], user);
+  const [researchItems, setResearchItems, resLoaded] = useSyncedState("researchItems", [], user);
   const [notes, setNotes, nLoaded] = useSyncedState("notes", INIT_NOTES, user);
   const [indicators, setIndicators, indLoaded] = useSyncedState("indicators", INIT_INDICATORS, user);
   const [events, setEvents, evLoaded] = useSyncedState("events", [], user);
   const [alerts, setAlerts, altLoaded] = useSyncedState("alerts", [], user);
   const [timesheet, setTimesheet, tsLoaded] = useSyncedState("timesheet", INIT_TIMESHEET, user);
-  
-  // ATUALIZADO: Novo estado sincronizado para as configurações (tipos) de notas
   const [noteSettings, setNoteSettings, nsLoaded] = useSyncedState("noteSettings", { customTypes: [] }, user);
 
   const [pomo, setPomo] = useState({ running: false, seconds: 25 * 60, initialSec: 25 * 60, isBreak: false, cycles: 0 })
   const [activeAlert, setActiveAlert] = useState(null)
   const [dbError, setDbError] = useState(false)
 
-  // ATUALIZADO: Espera nsLoaded também
-  const allLoaded = tLoaded && tkLoaded && intLoaded && nLoaded && indLoaded && evLoaded && altLoaded && tsLoaded && nsLoaded;
+  const allLoaded = tLoaded && tkLoaded && resLoaded && nLoaded && indLoaded && evLoaded && altLoaded && tsLoaded && nsLoaded;
 
   useEffect(() => {
     const handleDbError = () => setDbError(true);
@@ -2334,7 +1843,6 @@ function MainApp({ user }) {
     return () => window.removeEventListener('db-permission-error', handleDbError);
   }, []);
 
-  // Pomodoro Tracker
   useEffect(() => {
     let interval;
     if (pomo.running) {
@@ -2352,22 +1860,15 @@ function MainApp({ user }) {
     return () => clearInterval(interval)
   }, [pomo.running])
 
-  // Alerts Watcher (Executa a cada 5 segundos para bater horário)
   useEffect(() => {
     if (!allLoaded) return;
     const interval = setInterval(() => {
-      const now = new Date();
-      const currDate = todayStr();
-      const currTime = fmtTime(now.getHours() * 60 + now.getMinutes());
-
+      const now = new Date(); const currDate = todayStr(); const currTime = fmtTime(now.getHours() * 60 + now.getMinutes());
       setAlerts(prev => {
         let triggeredAny = false;
         const next = prev.map(a => {
            if (!a.triggered && a.date === currDate && a.time === currTime) {
-             triggeredAny = true;
-             playBeep();
-             setActiveAlert(a);
-             return { ...a, triggered: true };
+             triggeredAny = true; playBeep(); setActiveAlert(a); return { ...a, triggered: true };
            }
            return a;
         });
@@ -2377,9 +1878,7 @@ function MainApp({ user }) {
     return () => clearInterval(interval);
   }, [allLoaded, setAlerts]);
 
-  if (!allLoaded) {
-    return <div style={{ background: "#0a0b0f", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", color: "#6b7280", fontFamily: "'Manrope',sans-serif" }}>Sincronizando seus dados...</div>;
-  }
+  if (!allLoaded) return <div style={{ background: "#0a0b0f", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", color: "#6b7280", fontFamily: "'Manrope',sans-serif" }}>Sincronizando seus dados...</div>;
 
   const acMod        = MODULES.find(m => m.id === activeModule)
   const overdueCount = tasks.filter(t => isPast(t.deadline) && t.status !== "done").length
@@ -2388,13 +1887,10 @@ function MainApp({ user }) {
 
   const handleLogout = () => signOut(auth);
 
-  // ATUALIZADO: Passando noteSettings via props
-  const sharedProps = { teams, setTeams, tasks, setTasks, interruptions, setInterruptions, notes, setNotes, indicators, setIndicators, timesheet, setTimesheet, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts, noteSettings, setNoteSettings }
+  const sharedProps = { teams, setTeams, tasks, setTasks, researchItems, setResearchItems, notes, setNotes, indicators, setIndicators, timesheet, setTimesheet, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts, noteSettings, setNoteSettings }
 
   return (
     <div style={{ fontFamily: "'Manrope',sans-serif", background: "#0a0b0f", color: "#e8eaf0", minHeight: "100vh", position: "relative" }}>
-
-      {/* ── DESKTOP SIDEBAR ── */}
       {!isMobile && (
         <aside style={{ width: 228, background: "#0c0e14", borderRight: "1px solid #1a1d27", display: "flex", flexDirection: "column", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100 }}>
           <div style={{ padding: "20px 18px", borderBottom: "1px solid #1a1d27" }}>
@@ -2406,18 +1902,12 @@ function MainApp({ user }) {
               </div>
             </div>
           </div>
-
           <nav style={{ flex: 1, padding: "10px 0", overflowY: "auto" }}>
             {MODULES.map(m => {
               const isActive = activeModule === m.id
               const badge = m.id === "tasks" && overdueCount > 0 ? overdueCount : null
               return (
-                <button key={m.id} onClick={() => setActiveModule(m.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 18px", border: "none",
-                    background: isActive ? `${m.color}14` : "transparent",
-                    color: isActive ? m.color : "#6b7280",
-                    borderLeft: `3px solid ${isActive ? m.color : "transparent"}`,
-                    cursor: "pointer", fontSize: 13, fontWeight: isActive ? 600 : 400, textAlign: "left", transition: "all 0.15s" }}>
+                <button key={m.id} onClick={() => setActiveModule(m.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 18px", border: "none", background: isActive ? `${m.color}14` : "transparent", color: isActive ? m.color : "#6b7280", borderLeft: `3px solid ${isActive ? m.color : "transparent"}`, cursor: "pointer", fontSize: 13, fontWeight: isActive ? 600 : 400, textAlign: "left", transition: "all 0.15s" }}>
                   <span style={{ fontSize: 14 }}>{m.icon}</span>
                   <span style={{ flex: 1 }}>{m.fullLabel}</span>
                   {badge && <span style={{ background: "#ef4444", color: "#fff", borderRadius: 10, padding: "1px 6px", fontSize: 10, fontWeight: 700 }}>{badge}</span>}
@@ -2425,14 +1915,9 @@ function MainApp({ user }) {
               )
             })}
           </nav>
-
           <div style={{ padding: "12px 18px", borderTop: "1px solid #1a1d27" }}>
-            <p style={{ fontSize: 11, color: "#4b5563", margin: "0 0 2px", fontWeight: 600, textTransform: "capitalize" }}>
-              {today.toLocaleDateString("pt-BR", { weekday: "long" })}
-            </p>
-            <p style={{ fontSize: 10, color: "#374151", margin: "0 0 10px" }}>
-              {today.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })}
-            </p>
+            <p style={{ fontSize: 11, color: "#4b5563", margin: "0 0 2px", fontWeight: 600, textTransform: "capitalize" }}>{today.toLocaleDateString("pt-BR", { weekday: "long" })}</p>
+            <p style={{ fontSize: 10, color: "#374151", margin: "0 0 10px" }}>{today.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })}</p>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               <div style={{ flex: 1, background: "#f97316" + "22", borderRadius: 6, padding: "5px 8px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#f97316" }}>{myDayCount}</p>
@@ -2444,18 +1929,13 @@ function MainApp({ user }) {
                   <p style={{ margin: 0, fontSize: 9, color: "#6b7280" }}>Vencidas</p>
                 </div>
               )}
-              {pomo.running && (
-                 <div style={{ width: "100%", height: 38, marginTop: 4 }}>
-                   <MiniPomoHeader pomo={pomo} />
-                 </div>
-              )}
+              {pomo.running && <div style={{ width: "100%", height: 38, marginTop: 4 }}><MiniPomoHeader pomo={pomo} /></div>}
             </div>
             <button onClick={handleLogout} style={{ ...C.btn("transparent"), color: "#ef4444", fontSize: 12, marginTop: 10, width: "100%", padding: "8px" }}>🚪 Sair da Conta</button>
           </div>
         </aside>
       )}
 
-      {/* ── MOBILE TOP HEADER ── */}
       {isMobile && (
         <header style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "#0c0e14", borderBottom: "1px solid #1a1d27", padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 30, height: 30, borderRadius: 7, background: `linear-gradient(135deg, ${acMod.color}cc, ${acMod.color}44)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{acMod.icon}</div>
@@ -2470,16 +1950,7 @@ function MainApp({ user }) {
         </header>
       )}
 
-      {/* ── MAIN CONTENT ── */}
-      <main style={{
-        marginLeft: isMobile ? 0 : 228,
-        paddingTop:  isMobile ? 64 : 0,
-        paddingBottom: isMobile ? 74 : 0,
-        padding: isMobile ? "64px 14px 74px" : "28px 32px",
-        maxWidth: isMobile ? "100%" : `calc(100vw - 228px)`,
-        boxSizing: "border-box",
-        minHeight: "100vh",
-      }}>
+      <main style={{ marginLeft: isMobile ? 0 : 228, paddingTop:  isMobile ? 64 : 0, paddingBottom: isMobile ? 74 : 0, padding: isMobile ? "64px 14px 74px" : "28px 32px", maxWidth: isMobile ? "100%" : `calc(100vw - 228px)`, boxSizing: "border-box", minHeight: "100vh" }}>
         {activeModule === "teams"        && <TeamsModule        {...sharedProps} />}
         {activeModule === "tasks"        && <TasksModule        {...sharedProps} />}
         {activeModule === "productivity" && <ProductivityModule {...sharedProps} />}
@@ -2488,28 +1959,22 @@ function MainApp({ user }) {
         {activeModule === "notes"        && <NotesModule        {...sharedProps} />}
       </main>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
       {isMobile && (
         <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100, background: "#0c0e14", borderTop: "1px solid #1a1d27", display: "flex", alignItems: "stretch", height: 64 }}>
           {MODULES.map(m => {
             const isActive = activeModule === m.id
             const badge = m.id === "tasks" && overdueCount > 0 ? overdueCount : null
             return (
-              <button key={m.id} onClick={() => setActiveModule(m.id)}
-                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, border: "none", background: "transparent", cursor: "pointer", padding: "6px 2px", position: "relative",
-                  borderTop: `2px solid ${isActive ? m.color : "transparent"}`, transition: "all 0.15s" }}>
+              <button key={m.id} onClick={() => setActiveModule(m.id)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, border: "none", background: "transparent", cursor: "pointer", padding: "6px 2px", position: "relative", borderTop: `2px solid ${isActive ? m.color : "transparent"}`, transition: "all 0.15s" }}>
                 <span style={{ fontSize: 18, lineHeight: 1 }}>{m.icon}</span>
                 <span style={{ fontSize: 9, color: isActive ? m.color : "#6b7280", fontWeight: isActive ? 700 : 400, letterSpacing: "0.2px" }}>{m.label}</span>
-                {badge && (
-                  <div style={{ position: "absolute", top: 6, right: "50%", marginRight: -18, background: "#ef4444", color: "#fff", borderRadius: 8, padding: "0px 4px", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>{badge}</div>
-                )}
+                {badge && <div style={{ position: "absolute", top: 6, right: "50%", marginRight: -18, background: "#ef4444", color: "#fff", borderRadius: 8, padding: "0px 4px", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>{badge}</div>}
               </button>
             )
           })}
         </nav>
       )}
 
-      {/* ── POPUP DE ALERTA GLOBAL ── */}
       {activeAlert && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, backdropFilter: "blur(4px)" }}>
           <div style={{ background: "#12141a", border: "2px solid #ef4444", padding: "30px 20px", borderRadius: 16, textAlign: "center", maxWidth: 400, width: "90%", boxShadow: "0 10px 40px rgba(239, 68, 68, 0.2)" }}>
@@ -2521,17 +1986,12 @@ function MainApp({ user }) {
         </div>
       )}
 
-      {/* ── POPUP DE ERRO DO FIRESTORE (PERMISSÕES) ── */}
       {dbError && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, backdropFilter: "blur(4px)", padding: 20 }}>
           <div style={{ background: "#12141a", border: "2px solid #ef4444", padding: "30px 20px", borderRadius: 16, maxWidth: 500, width: "100%", boxShadow: "0 10px 40px rgba(239, 68, 68, 0.3)" }}>
             <h2 style={{ fontFamily: "'Syne', sans-serif", color: "#ef4444", margin: "0 0 16px", fontSize: 22, fontWeight: 800, textAlign: "center" }}>⚠️ Erro de Permissão no Banco de Dados</h2>
-            <p style={{ fontSize: 14, color: "#e8eaf0", marginBottom: 16, lineHeight: 1.6 }}>
-              O Firebase bloqueou o acesso ao seu Firestore. Por padrão, ele vem bloqueado por segurança.
-            </p>
-            <p style={{ fontSize: 14, color: "#e8eaf0", marginBottom: 10, lineHeight: 1.6, fontWeight: "bold" }}>
-              Siga estes 3 passos rápidos para resolver:
-            </p>
+            <p style={{ fontSize: 14, color: "#e8eaf0", marginBottom: 16, lineHeight: 1.6 }}>O Firebase bloqueou o acesso ao seu Firestore. Por padrão, ele vem bloqueado por segurança.</p>
+            <p style={{ fontSize: 14, color: "#e8eaf0", marginBottom: 10, lineHeight: 1.6, fontWeight: "bold" }}>Siga estes 3 passos rápidos para resolver:</p>
             <ol style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20, lineHeight: 1.6, paddingLeft: 20 }}>
               <li>Abra o Console do seu Firebase e clique em <b>Firestore Database</b> no menu esquerdo.</li>
               <li>Vá na aba <b>Regras (Rules)</b>.</li>
@@ -2558,7 +2018,6 @@ service cloud.firestore {
   )
 }
 
-// ─── Entry Point do App: Gerencia Estado de Auth ──────────────────────────────
 export default function App() {
   useAppAssets();
   const [user, setUser] = useState(null);
@@ -2566,30 +2025,18 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, u => {
-      setUser(u);
-      setAuthLoaded(true);
-    });
+    const unsub = onAuthStateChanged(auth, u => { setUser(u); setAuthLoaded(true); });
     return unsub;
   }, []);
 
   const loginWithEmail = async (email, password) => {
-    try {
-      setLoginError("");
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      console.error(error);
-      if (error.code === 'auth/invalid-credential') setLoginError("E-mail ou senha incorretos.");
-      else setLoginError("Erro no login: " + error.message);
-    }
+    try { setLoginError(""); await signInWithEmailAndPassword(auth, email, password); } 
+    catch (error) { if (error.code === 'auth/invalid-credential') setLoginError("E-mail ou senha incorretos."); else setLoginError("Erro no login: " + error.message); }
   };
 
   const registerWithEmail = async (email, password) => {
-    try {
-      setLoginError("");
-      await createUserWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      console.error(error);
+    try { setLoginError(""); await createUserWithEmailAndPassword(auth, email, password); } 
+    catch (error) {
       if (error.code === 'auth/email-already-in-use') setLoginError("Este e-mail já está em uso.");
       else if (error.code === 'auth/weak-password') setLoginError("A senha deve ter pelo menos 6 caracteres.");
       else if (error.code === 'auth/admin-restricted-operation') setLoginError("⚠️ Você precisa ativar o provedor 'E-mail/Senha' no painel do Firebase > Authentication > Sign-in method.");
@@ -2598,36 +2045,16 @@ export default function App() {
   };
 
   const loginWithGoogle = async () => {
-    try {
-      setLoginError("");
-      await signInWithPopup(auth, new GoogleAuthProvider());
-    } catch (error) {
-      console.error(error);
-      if (error.code === 'auth/unauthorized-domain') {
-        setLoginError("⚠️ Domínio não autorizado pelo Firebase.\n\nPara usar o Google Login neste ambiente de pré-visualização, prefira entrar com E-mail e Senha (lembre-se de ativar no Firebase).");
-      } else {
-        setLoginError("Erro ao fazer login: " + error.message);
-      }
-    }
+    try { setLoginError(""); await signInWithPopup(auth, new GoogleAuthProvider()); } 
+    catch (error) { if (error.code === 'auth/unauthorized-domain') { setLoginError("⚠️ Domínio não autorizado pelo Firebase.\n\nPara usar o Google Login neste ambiente de pré-visualização, prefira entrar com E-mail e Senha (lembre-se de ativar no Firebase)."); } else { setLoginError("Erro ao fazer login: " + error.message); } }
   };
 
   const loginAnonymously = async () => {
-    try {
-      setLoginError("");
-      await signInAnonymously(auth);
-    } catch (error) {
-      console.error(error);
-      if (error.code === 'auth/admin-restricted-operation') {
-        setLoginError("⚠️ Login Anônimo Desativado.\n\nAcesse seu painel Firebase > Authentication > Sign-in method e ative a opção 'Anonymous' (Anônimo).");
-      } else {
-        setLoginError("Erro no login anônimo: " + error.message);
-      }
-    }
+    try { setLoginError(""); await signInAnonymously(auth); } 
+    catch (error) { if (error.code === 'auth/admin-restricted-operation') { setLoginError("⚠️ Login Anônimo Desativado.\n\nAcesse seu painel Firebase > Authentication > Sign-in method e ative a opção 'Anonymous' (Anônimo)."); } else { setLoginError("Erro no login anônimo: " + error.message); } }
   };
 
   if (!authLoaded) return <div style={{ background: "#0a0b0f", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", color: "#6b7280", fontFamily: "'Manrope',sans-serif" }}>Verificando autenticação...</div>;
-
   if (!user) return <LoginScreen onLoginGoogle={loginWithGoogle} onLoginAnon={loginAnonymously} onLoginEmail={loginWithEmail} onRegisterEmail={registerWithEmail} error={loginError} />;
-
   return <MainApp user={user} />;
 }
