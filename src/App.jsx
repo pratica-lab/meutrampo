@@ -105,7 +105,7 @@ function useAppAssets() {
       document.head.appendChild(favicon)
     }
     
-    // NOVO ÍCONE DE APP - Representa Kanban, Processos, Equipe e Produtividade
+    // ÍCONE DE APP - Representa Kanban, Processos, Equipe e Produtividade
     const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <defs>
         <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -1978,20 +1978,21 @@ function IndicatorsModule({ indicators, setIndicators, isMobile }) {
 }
 
 // ─── 9. Módulo Notas ──────────────────────────────────────────────────────────
+const ICONS = ['📄', '📊', '🤝', '💡', '📌', '🚀', '🛠️', '📝', '📁', '⚙️', '📅', '📞', '🔍', '📦', '🎯', '💰'];
+
 function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSettings }) {
   const color = "#a855f7"
   const [tab, setTab] = useState("meetings")
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   
-  const [showTypeForm, setShowTypeForm] = useState(false)
-  const [typeForm, setTypeForm] = useState({ name: "", icon: "📄", fields: [{ id: Date.now(), name: "Descrição Geral" }] })
+  // ATUALIZADO: Gerenciamento de Tipos agora possui modos 'list' ou 'form'
+  const [manageMode, setManageMode] = useState(null) // null | 'list' | 'form'
+  const [typeForm, setTypeForm] = useState({ name: "", icon: "📄", fields: [] })
 
   const [searchQ, setSearchQ] = useState("")
-  // ATUALIZADO: Estado form suporta campos customizados
   const [form, setForm] = useState({ title: "", content: "", date: new Date().toLocaleDateString("pt-BR"), team: "", tags: "", person: "", type: "Recebido", customFields: {} })
 
-  // ATUALIZADO: Mesclando abas estáticas com as personalizadas salvas
   const SECS = [
     { id: "meetings",   label: "📅 Reuniões"    },
     { id: "feedbacks",  label: "💬 Feedbacks"   },
@@ -2015,9 +2016,19 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
   }
 
   const saveNote = () => {
-    if (!form.title.trim()) return
+    let finalTitle = form.title;
+    
+    // Se for um tipo customizado, o título vira o valor do primeiro campo obrigatoriamente
+    if (currentCustomType) {
+      const firstFieldId = currentCustomType.fields[0]?.id;
+      finalTitle = form.customFields[firstFieldId] || "Sem título definido";
+    }
+
+    if (!finalTitle.trim() && !currentCustomType) return
+    if (currentCustomType && (!form.customFields[currentCustomType.fields[0]?.id] || !form.customFields[currentCustomType.fields[0]?.id].trim())) return; // Exige primeiro campo preenchido
+
     const tagsArr = form.tags.split(",").map(t => t.trim()).filter(Boolean)
-    const newNote = { ...form, tags: tagsArr }
+    const newNote = { ...form, title: finalTitle, tags: tagsArr }
     
     if (editingId) {
       setNotes(prev => ({ ...prev, [tab]: (prev[tab]||[]).map(n => n.id === editingId ? { ...n, ...newNote } : n) }))
@@ -2028,11 +2039,20 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
   }
 
   const saveNewType = () => {
-    if (!typeForm.name.trim()) return;
-    const newType = { id: "custom_" + Date.now(), label: typeForm.name, icon: typeForm.icon, fields: typeForm.fields.filter(f => f.name.trim()) };
-    setNoteSettings(prev => ({ ...prev, customTypes: [...(prev.customTypes || []), newType] }));
-    setShowTypeForm(false);
-    setTypeForm({ name: "", icon: "📄", fields: [{ id: Date.now(), name: "Descrição Geral" }] });
+    const fieldsToSave = typeForm.fields.filter(f => f.name.trim());
+    if (!typeForm.name.trim() || fieldsToSave.length === 0) return;
+
+    const newType = { id: typeForm.id || ("custom_" + Date.now()), label: typeForm.name, icon: typeForm.icon, fields: fieldsToSave };
+    
+    setNoteSettings(prev => {
+       const exists = (prev.customTypes || []).find(t => t.id === newType.id);
+       if (exists) {
+          return { ...prev, customTypes: prev.customTypes.map(t => t.id === newType.id ? newType : t) };
+       } else {
+          return { ...prev, customTypes: [...(prev.customTypes || []), newType] };
+       }
+    });
+    setManageMode('list');
   }
   
   const deleteNote = (id) => setNotes(prev => ({ ...prev, [tab]: prev[tab].filter(n => n.id !== id) }))
@@ -2045,10 +2065,10 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
     
     let matchesCustom = false;
     if (n.customFields) {
-      matchesCustom = Object.values(n.customFields).some(val => typeof val === "string" && val.toLowerCase().includes(q))
+      matchesCustom = Object.values(n.customFields).some(val => String(val).toLowerCase().includes(q))
     }
 
-    return n.title.toLowerCase().includes(q) || 
+    return (n.title && n.title.toLowerCase().includes(q)) || 
            (n.content && n.content.toLowerCase().includes(q)) ||
            (n.tags && n.tags.some(t => t.toLowerCase().includes(q))) ||
            (n.team && n.team.toLowerCase().includes(q)) ||
@@ -2066,57 +2086,127 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
       </div>
 
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
-         <ScrollTabs tabs={SECS} active={tab} onSelect={(id) => { setTab(id); setShowForm(false) }} color={color} />
-         <button onClick={() => setShowTypeForm(true)} style={{ ...C.btn("#1e2130"), fontSize: 11, padding: "8px 12px", height: 35 }}>+ Criar Tipo</button>
+         <ScrollTabs tabs={SECS} active={tab} onSelect={(id) => { setTab(id); setShowForm(false); setManageMode(null) }} color={color} />
+         <button onClick={() => setManageMode('list')} style={{ ...C.btn("#1e2130"), fontSize: 11, padding: "8px 12px", height: 35 }}>⚙️ Gerenciar Tipos</button>
       </div>
 
-      {showTypeForm && (
+      {manageMode === 'form' && (
          <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16, background: "#1a1d26" }}>
-           <span style={C.lbl}>Configurar Novo Tipo de Nota</span>
-           <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-              <input placeholder="Ícone (Emoji)" value={typeForm.icon} onChange={e => setTypeForm({...typeForm, icon: e.target.value})} style={{ ...C.input, width: 60, textAlign: "center" }} maxLength={4} />
-              <input placeholder="Nome da Aba (ex: Ata de Reunião, 1:1, Relatório...)" value={typeForm.name} onChange={e => setTypeForm({...typeForm, name: e.target.value})} style={{ ...C.input, flex: 1 }} />
+           <span style={C.lbl}>1. Escolha um Ícone</span>
+           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+              {ICONS.map(ic => (
+                 <button key={ic} onClick={() => setTypeForm({...typeForm, icon: ic})} style={{ background: typeForm.icon === ic ? color : "#1e2130", border: "none", borderRadius: 8, padding: "8px", fontSize: 18, cursor: "pointer", transition: "0.2s" }}>{ic}</button>
+              ))}
            </div>
            
-           <span style={C.lbl}>Campos de Preenchimento do Template</span>
+           <span style={C.lbl}>2. Nome da Aba/Tipo</span>
+           <input placeholder="ex: Ata de Reunião, 1:1, Relatório..." value={typeForm.name} onChange={e => setTypeForm({...typeForm, name: e.target.value})} style={{ ...C.input, marginBottom: 16 }} />
+
+           <span style={C.lbl}>3. Campos do Documento (O primeiro será usado como Título)</span>
            {typeForm.fields.map((f, i) => (
-              <div key={f.id} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <input placeholder={`Nome do campo (ex: Decisões tomadas, Plano de Ação...)`} value={f.name} onChange={e => {
+              <div key={f.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                <div style={{ width: 24, textAlign: "center", color: "#6b7280", fontSize: 12 }}>{i + 1}.</div>
+                <input placeholder="Nome do campo" value={f.name} onChange={e => {
                    const newFields = [...typeForm.fields];
                    newFields[i].name = e.target.value;
                    setTypeForm({...typeForm, fields: newFields});
-                }} style={C.input} />
+                }} style={{...C.input, flex: 1}} />
+                
+                <select value={f.type || 'text'} onChange={e => {
+                   const newFields = [...typeForm.fields];
+                   newFields[i].type = e.target.value;
+                   setTypeForm({...typeForm, fields: newFields});
+                }} style={{ ...C.input, width: isMobile ? 110 : 130 }}>
+                   <option value="text">Texto Curto</option>
+                   <option value="textarea">Descrição</option>
+                   <option value="number">Numérico</option>
+                   <option value="date">Data</option>
+                </select>
+                
                 <button onClick={() => {
                    setTypeForm({...typeForm, fields: typeForm.fields.filter(field => field.id !== f.id)})
                 }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }}>✕</button>
               </div>
            ))}
-           <button onClick={() => setTypeForm({...typeForm, fields: [...typeForm.fields, { id: Date.now(), name: "" }]})} style={{ ...C.btn("transparent"), fontSize: 11, marginBottom: 16, padding: "6px 0" }}>+ Adicionar mais um campo</button>
+           <button onClick={() => setTypeForm({...typeForm, fields: [...typeForm.fields, { id: Date.now(), name: "", type: "text" }]})} style={{ ...C.btn("transparent"), fontSize: 11, marginBottom: 16, padding: "6px 0" }}>+ Adicionar mais um campo</button>
            
            <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid #2a2f40" }}>
-              <button onClick={saveNewType} style={C.btn(color)}>Salvar Novo Tipo</button>
-              <button onClick={() => setShowTypeForm(false)} style={C.btn("transparent")}>Cancelar</button>
+              <button onClick={saveNewType} style={C.btn(color)}>Salvar Tipo</button>
+              <button onClick={() => setManageMode('list')} style={C.btn("transparent")}>Voltar</button>
            </div>
          </div>
       )}
 
-      {showForm && (
-        <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {currentCustomType ? (
-               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
-                    <input placeholder="Título Principal *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} style={{ ...C.input, flex: 1 }} />
-                    <input placeholder="Data (DD/MM/AAAA)" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} style={{ ...C.input, width: isMobile ? "100%" : 140 }} />
-                  </div>
-                  {currentCustomType.fields.map(f => (
-                     <div key={f.id}>
-                        <span style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4, display: "block" }}>{f.name}</span>
-                        <textarea placeholder={`Preencha o campo '${f.name}'...`} value={form.customFields[f.id] || ""} onChange={e => setForm({...form, customFields: {...form.customFields, [f.id]: e.target.value}})} style={{ ...C.input, minHeight: 60, resize: "vertical" }} />
+      {manageMode === 'list' && (
+         <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16, background: "#1a1d26" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+               <span style={{...C.lbl, margin: 0}}>Gerenciar Tipos de Notas</span>
+               <button onClick={() => { setTypeForm({ name: "", icon: ICONS[0], fields: [{ id: Date.now(), name: "Título / Nome do Documento", type: "text" }] }); setManageMode('form'); }} style={{ ...C.btn(color), fontSize: 11, padding: "6px 12px" }}>+ Novo Tipo</button>
+            </div>
+
+            {(noteSettings?.customTypes || []).length === 0 ? (
+               <p style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>Nenhum tipo personalizado criado ainda.</p>
+            ) : (
+               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {(noteSettings?.customTypes || []).map(ct => (
+                     <div key={ct.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0a0b0f", padding: "10px 14px", borderRadius: 8, border: "1px solid #2a2f40" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                           <span style={{ fontSize: 20 }}>{ct.icon}</span>
+                           <div>
+                              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#e8eaf0" }}>{ct.label}</p>
+                              <p style={{ margin: 0, fontSize: 11, color: "#6b7280" }}>{ct.fields?.length || 0} campos</p>
+                           </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                           <button onClick={() => { setTypeForm({ id: ct.id, name: ct.label, icon: ct.icon, fields: ct.fields }); setManageMode('form'); }} style={{ background: "none", border: "none", color: "#3b82f6", cursor: "pointer", fontSize: 13, padding: "0 4px" }}>✏️</button>
+                           <button onClick={() => {
+                              if (window.confirm(`Tem certeza que deseja excluir o tipo "${ct.label}"?\nAs notas antigas desse tipo ficarão inacessíveis nesta aba.`)) {
+                                 setNoteSettings(prev => ({...prev, customTypes: prev.customTypes.filter(t => t.id !== ct.id)}));
+                                 if (tab === ct.id) setTab('meetings');
+                              }
+                           }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 13, padding: "0 4px" }}>🗑</button>
+                        </div>
                      </div>
                   ))}
                </div>
-            ) : tab === "changes" ? (
+            )}
+            
+            <div style={{ marginTop: 16, paddingTop: 10, borderTop: "1px solid #2a2f40" }}>
+               <button onClick={() => setManageMode(null)} style={C.btn("#1e2130")}>Fechar Configurações</button>
+            </div>
+         </div>
+      )}
+
+      {showForm && !manageMode && (
+        <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            
+            {/* FORMULÁRIO DINÂMICO PARA TIPOS CUSTOMIZADOS */}
+            {currentCustomType ? (
+               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {currentCustomType.fields.map((f, idx) => (
+                     <div key={f.id}>
+                        <span style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4, display: "block" }}>
+                           {f.name} {idx === 0 && <span style={{color: color}}>(Título da Nota) *</span>}
+                        </span>
+                        
+                        {/* RENDERIZAÇÃO DO INPUT BASEADA NO TIPO DE CAMPO */}
+                        {f.type === 'textarea' ? (
+                            <textarea placeholder={`Preencha o campo '${f.name}'...`} value={form.customFields[f.id] || ""} onChange={e => setForm({...form, customFields: {...form.customFields, [f.id]: e.target.value}})} style={{ ...C.input, minHeight: 60, resize: "vertical" }} />
+                        ) : (
+                            <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} placeholder={`Preencha o campo '${f.name}'...`} value={form.customFields[f.id] || ""} onChange={e => setForm({...form, customFields: {...form.customFields, [f.id]: e.target.value}})} style={C.input} />
+                        )}
+                     </div>
+                  ))}
+                  <div>
+                     <span style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4, display: "block" }}>Tags para busca</span>
+                     <input placeholder="Ex: importante, projeto X, aprovado..." value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} style={C.input} />
+                  </div>
+               </div>
+            ) : 
+            
+            /* FORMULÁRIOS PADRÕES DO SISTEMA */
+            tab === "changes" ? (
               <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
                 <input placeholder="Número da Change (ex: CHG-123) *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} style={{ ...C.input, flex: 1 }} />
                 <select value={form.team} onChange={e => setForm({ ...form, team: e.target.value })} style={{ ...C.input, flex: 1 }}>
@@ -2146,11 +2236,13 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
               </div>
             )}
             
-            <input placeholder="Tags para busca (separadas por vírgula)" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} style={C.input} />
-
+            {/* RENDERIZA OS CAMPOS FIXOS APENAS SE FOR UMA ABA PADRÃO */}
             {!currentCustomType && (
-               <textarea placeholder={tab === "changes" ? "Itens entregues..." : tab === "feedbacks" ? "Pontos fortes e oportunidades detalhadas..." : "Conteúdo detalhado..."} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })}
-                 style={{ ...C.input, minHeight: 100, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} />
+               <>
+                 <input placeholder="Tags para busca (separadas por vírgula)" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} style={C.input} />
+                 <textarea placeholder={tab === "changes" ? "Itens entregues..." : tab === "feedbacks" ? "Pontos fortes e oportunidades detalhadas..." : "Conteúdo detalhado..."} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })}
+                   style={{ ...C.input, minHeight: 100, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} />
+               </>
             )}
             
             <div style={{ display: "flex", gap: 8 }}>
@@ -2161,46 +2253,53 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {current.length === 0
-          ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>Nenhum documento encontrado nesta aba.</div>
-          : current.map(note => (
-            <div key={note.id} style={{ ...C.card, borderLeft: `4px solid ${color}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                <div>
-                  <h4 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, margin: "0 0 4px", fontSize: 15, wordBreak: "break-word" }}>{note.title}</h4>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                    <span style={C.tag(color)}>{note.date}</span>
-                    {note.team && <span style={C.tag("#3b82f6")}>Time: {note.team}</span>}
-                    {note.person && <span style={C.tag("#eab308")}>{note.type}: {note.person}</span>}
-                    {(note.tags || []).map((t, idx) => <span key={idx} style={{ ...C.tag("#6b7280"), color: "#9ca3af" }}>#{t}</span>)}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => openEdit(note)} style={{ background: "none", border: "none", cursor: "pointer", color: "#3b82f6", fontSize: 12, padding: 0 }}>✏️ Editar</button>
-                  <button onClick={() => deleteNote(note.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 13, padding: "0 0 0 8px" }}>🗑</button>
-                </div>
-              </div>
-
-              {/* Renderização Dinâmica de Campos vs Texto Padrão */}
-              {currentCustomType ? (
-                 <div style={{ marginTop: 10, borderTop: "1px solid #1e2130", paddingTop: 10 }}>
-                   {currentCustomType.fields.map(f => (
-                     note.customFields && note.customFields[f.id] && (
-                       <div key={f.id} style={{ marginBottom: 8 }}>
-                         <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, textTransform: "uppercase" }}>{f.name}</span>
-                         <p style={{ fontSize: 13, color: "#e8eaf0", margin: "2px 0 0", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{note.customFields[f.id]}</p>
-                       </div>
-                     )
-                   ))}
+      {/* LISTAGEM DE NOTAS */}
+      {!manageMode && (
+         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+           {current.length === 0
+             ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>Nenhum documento encontrado nesta aba.</div>
+             : current.map(note => (
+               <div key={note.id} style={{ ...C.card, borderLeft: `4px solid ${color}` }}>
+                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                   <div>
+                     <h4 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, margin: "0 0 4px", fontSize: 15, wordBreak: "break-word" }}>{note.title}</h4>
+                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                       {!currentCustomType && <span style={C.tag(color)}>{note.date}</span>}
+                       {note.team && <span style={C.tag("#3b82f6")}>Time: {note.team}</span>}
+                       {note.person && <span style={C.tag("#eab308")}>{note.type}: {note.person}</span>}
+                       {(note.tags || []).map((t, idx) => <span key={idx} style={{ ...C.tag("#6b7280"), color: "#9ca3af" }}>#{t}</span>)}
+                     </div>
+                   </div>
+                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                     <button onClick={() => openEdit(note)} style={{ background: "none", border: "none", cursor: "pointer", color: "#3b82f6", fontSize: 12, padding: 0 }}>✏️ Editar</button>
+                     <button onClick={() => deleteNote(note.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 13, padding: "0 0 0 8px" }}>🗑</button>
+                   </div>
                  </div>
-              ) : (
-                 note.content && <p style={{ fontSize: 13, color: "#9ca3af", margin: "10px 0 0", lineHeight: 1.7, whiteSpace: "pre-wrap", borderTop: "1px solid #1e2130", paddingTop: 10 }}>{note.content}</p>
-              )}
-            </div>
-          ))
-        }
-      </div>
+
+                 {/* Renderização Dinâmica de Campos vs Texto Padrão */}
+                 {currentCustomType ? (
+                    <div style={{ marginTop: 10, borderTop: "1px solid #1e2130", paddingTop: 10 }}>
+                      {currentCustomType.fields.map((f, idx) => {
+                         // Pula a renderização do primeiro campo no corpo (pois ele já é o Título lá em cima)
+                         if (idx === 0) return null;
+                         return note.customFields && note.customFields[f.id] ? (
+                          <div key={f.id} style={{ marginBottom: 12 }}>
+                            <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>{f.name}</span>
+                            <p style={{ fontSize: 13, color: "#e8eaf0", margin: "2px 0 0", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                               {f.type === 'date' ? note.customFields[f.id].split('-').reverse().join('/') : note.customFields[f.id]}
+                            </p>
+                          </div>
+                        ) : null
+                      })}
+                    </div>
+                 ) : (
+                    note.content && <p style={{ fontSize: 13, color: "#9ca3af", margin: "10px 0 0", lineHeight: 1.7, whiteSpace: "pre-wrap", borderTop: "1px solid #1e2130", paddingTop: 10 }}>{note.content}</p>
+                 )}
+               </div>
+             ))
+           }
+         </div>
+      )}
     </div>
   )
 }
