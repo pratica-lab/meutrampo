@@ -104,7 +104,26 @@ function useAppAssets() {
       favicon.rel = 'icon'
       document.head.appendChild(favicon)
     }
-    const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#22c55e"/><path d="M28 52l14 14l30-30" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M45 65l-5 22l24-12l-6-10" fill="#f97316"/></svg>`
+    
+    // NOVO ÍCONE DE APP - Representa Kanban, Processos, Equipe e Produtividade
+    const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#3b82f6"/>
+          <stop offset="100%" stop-color="#a855f7"/>
+        </linearGradient>
+        <linearGradient id="card" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="100%" stop-color="#f3f4f6"/>
+        </linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="22" fill="url(#bg)"/>
+      <rect x="20" y="30" width="16" height="40" rx="6" fill="url(#card)" opacity="0.9"/>
+      <rect x="42" y="20" width="16" height="60" rx="6" fill="url(#card)" opacity="0.95"/>
+      <rect x="64" y="40" width="16" height="30" rx="6" fill="url(#card)" opacity="0.8"/>
+      <circle cx="50" cy="50" r="14" fill="#f97316" stroke="#ffffff" stroke-width="3"/>
+      <path d="M44 50 L48 54 L56 46" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`
     favicon.href = `data:image/svg+xml,${encodeURIComponent(svgIcon)}`
 
     return () => document.head.removeChild(link)
@@ -180,7 +199,7 @@ function Checkbox({ checked, onChange, color }) {
 
 function ScrollTabs({ tabs, active, onSelect, color }) {
   return (
-    <div style={{ display: "flex", gap: 4, marginBottom: 16, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+    <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none", flex: 1 }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => onSelect(t.id)}
           style={{ ...C.btn(active === t.id ? color : "#1e2130"), flexShrink: 0, fontSize: 12 }}>
@@ -768,7 +787,6 @@ function TasksModule({ tasks, setTasks, isMobile }) {
   const [editingTaskId, setEditingTaskId] = useState(null)
   const [taskEditForm, setTaskEditForm] = useState({})
 
-  // Flag "Hoje" vem desmarcada por padrão
   const [form, setForm] = useState({ title: "", deadline: "", priority: "Média", delegable: false, tags: "", myDay: false, forTomorrow: false, notes: "" })
 
   const overdueCount  = tasks.filter(t => isPast(t.deadline) && t.status !== "done").length
@@ -1960,30 +1978,38 @@ function IndicatorsModule({ indicators, setIndicators, isMobile }) {
 }
 
 // ─── 9. Módulo Notas ──────────────────────────────────────────────────────────
-function NotesModule({ notes, setNotes, teams, isMobile }) {
+function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSettings }) {
   const color = "#a855f7"
   const [tab, setTab] = useState("meetings")
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   
-  const [searchQ, setSearchQ] = useState("")
-  const [form, setForm] = useState({ title: "", content: "", date: new Date().toLocaleDateString("pt-BR"), team: "", tags: "", person: "", type: "Recebido" })
+  const [showTypeForm, setShowTypeForm] = useState(false)
+  const [typeForm, setTypeForm] = useState({ name: "", icon: "📄", fields: [{ id: Date.now(), name: "Descrição Geral" }] })
 
+  const [searchQ, setSearchQ] = useState("")
+  // ATUALIZADO: Estado form suporta campos customizados
+  const [form, setForm] = useState({ title: "", content: "", date: new Date().toLocaleDateString("pt-BR"), team: "", tags: "", person: "", type: "Recebido", customFields: {} })
+
+  // ATUALIZADO: Mesclando abas estáticas com as personalizadas salvas
   const SECS = [
     { id: "meetings",   label: "📅 Reuniões"    },
     { id: "feedbacks",  label: "💬 Feedbacks"   },
     { id: "changes",    label: "🚀 Changes"     },
     { id: "others",     label: "📝 Geral"       },
+    ...(noteSettings?.customTypes || []).map(ct => ({ id: ct.id, label: `${ct.icon} ${ct.label}`, isCustom: true }))
   ]
 
+  const currentCustomType = (noteSettings?.customTypes || []).find(ct => ct.id === tab);
+
   const openNew = () => {
-    setForm({ title: "", content: "", date: todayStr().split('-').reverse().join('/'), team: "", tags: "", person: "", type: "Recebido" })
+    setForm({ title: "", content: "", date: todayStr().split('-').reverse().join('/'), team: "", tags: "", person: "", type: "Recebido", customFields: {} })
     setEditingId(null)
     setShowForm(true)
   }
 
   const openEdit = (note) => {
-    setForm({ title: note.title, content: note.content, date: note.date, team: note.team || "", person: note.person || "", type: note.type || "Recebido", tags: (note.tags||[]).join(", ") })
+    setForm({ title: note.title, content: note.content, date: note.date, team: note.team || "", person: note.person || "", type: note.type || "Recebido", tags: (note.tags||[]).join(", "), customFields: note.customFields || {} })
     setEditingId(note.id)
     setShowForm(true)
   }
@@ -1994,11 +2020,19 @@ function NotesModule({ notes, setNotes, teams, isMobile }) {
     const newNote = { ...form, tags: tagsArr }
     
     if (editingId) {
-      setNotes(prev => ({ ...prev, [tab]: prev[tab].map(n => n.id === editingId ? { ...n, ...newNote } : n) }))
+      setNotes(prev => ({ ...prev, [tab]: (prev[tab]||[]).map(n => n.id === editingId ? { ...n, ...newNote } : n) }))
     } else {
       setNotes(prev => ({ ...prev, [tab]: [{ id: Date.now(), ...newNote }, ...(prev[tab]||[])] }))
     }
     setShowForm(false)
+  }
+
+  const saveNewType = () => {
+    if (!typeForm.name.trim()) return;
+    const newType = { id: "custom_" + Date.now(), label: typeForm.name, icon: typeForm.icon, fields: typeForm.fields.filter(f => f.name.trim()) };
+    setNoteSettings(prev => ({ ...prev, customTypes: [...(prev.customTypes || []), newType] }));
+    setShowTypeForm(false);
+    setTypeForm({ name: "", icon: "📄", fields: [{ id: Date.now(), name: "Descrição Geral" }] });
   }
   
   const deleteNote = (id) => setNotes(prev => ({ ...prev, [tab]: prev[tab].filter(n => n.id !== id) }))
@@ -2008,28 +2042,81 @@ function NotesModule({ notes, setNotes, teams, isMobile }) {
   const current = rawCurrent.filter(n => {
     if(!searchQ.trim()) return true
     const q = searchQ.toLowerCase()
+    
+    let matchesCustom = false;
+    if (n.customFields) {
+      matchesCustom = Object.values(n.customFields).some(val => typeof val === "string" && val.toLowerCase().includes(q))
+    }
+
     return n.title.toLowerCase().includes(q) || 
            (n.content && n.content.toLowerCase().includes(q)) ||
            (n.tags && n.tags.some(t => t.toLowerCase().includes(q))) ||
            (n.team && n.team.toLowerCase().includes(q)) ||
-           (n.person && n.person.toLowerCase().includes(q))
+           (n.person && n.person.toLowerCase().includes(q)) ||
+           matchesCustom
   })
 
   return (
     <div>
-      <ModuleHeader title="Notas & Docs" subtitle="Reuniões, feedbacks e anotações gerais" color={color} isMobile={isMobile}
-        action={<button onClick={openNew} style={C.btn(color)}>+ Novo</button>} />
+      <ModuleHeader title="Notas & Docs" subtitle="Reuniões, feedbacks, templates e anotações gerais" color={color} isMobile={isMobile}
+        action={<button onClick={openNew} style={C.btn(color)}>+ Novo Documento</button>} />
 
       <div style={{ marginBottom: 16 }}>
-         <input placeholder="Busca inteligente (título, conteúdo, pessoa ou tags)..." value={searchQ} onChange={e => setSearchQ(e.target.value)} style={{ ...C.input, background: "#12141a" }} />
+         <input placeholder="Busca inteligente (título, conteúdo, campos customizados ou tags)..." value={searchQ} onChange={e => setSearchQ(e.target.value)} style={{ ...C.input, background: "#12141a" }} />
       </div>
 
-      <ScrollTabs tabs={SECS} active={tab} onSelect={(id) => { setTab(id); setShowForm(false) }} color={color} />
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 16 }}>
+         <ScrollTabs tabs={SECS} active={tab} onSelect={(id) => { setTab(id); setShowForm(false) }} color={color} />
+         <button onClick={() => setShowTypeForm(true)} style={{ ...C.btn("#1e2130"), fontSize: 11, padding: "8px 12px", height: 35 }}>+ Criar Tipo</button>
+      </div>
+
+      {showTypeForm && (
+         <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16, background: "#1a1d26" }}>
+           <span style={C.lbl}>Configurar Novo Tipo de Nota</span>
+           <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+              <input placeholder="Ícone (Emoji)" value={typeForm.icon} onChange={e => setTypeForm({...typeForm, icon: e.target.value})} style={{ ...C.input, width: 60, textAlign: "center" }} maxLength={4} />
+              <input placeholder="Nome da Aba (ex: Ata de Reunião, 1:1, Relatório...)" value={typeForm.name} onChange={e => setTypeForm({...typeForm, name: e.target.value})} style={{ ...C.input, flex: 1 }} />
+           </div>
+           
+           <span style={C.lbl}>Campos de Preenchimento do Template</span>
+           {typeForm.fields.map((f, i) => (
+              <div key={f.id} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <input placeholder={`Nome do campo (ex: Decisões tomadas, Plano de Ação...)`} value={f.name} onChange={e => {
+                   const newFields = [...typeForm.fields];
+                   newFields[i].name = e.target.value;
+                   setTypeForm({...typeForm, fields: newFields});
+                }} style={C.input} />
+                <button onClick={() => {
+                   setTypeForm({...typeForm, fields: typeForm.fields.filter(field => field.id !== f.id)})
+                }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }}>✕</button>
+              </div>
+           ))}
+           <button onClick={() => setTypeForm({...typeForm, fields: [...typeForm.fields, { id: Date.now(), name: "" }]})} style={{ ...C.btn("transparent"), fontSize: 11, marginBottom: 16, padding: "6px 0" }}>+ Adicionar mais um campo</button>
+           
+           <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid #2a2f40" }}>
+              <button onClick={saveNewType} style={C.btn(color)}>Salvar Novo Tipo</button>
+              <button onClick={() => setShowTypeForm(false)} style={C.btn("transparent")}>Cancelar</button>
+           </div>
+         </div>
+      )}
 
       {showForm && (
         <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {tab === "changes" ? (
+            {currentCustomType ? (
+               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
+                    <input placeholder="Título Principal *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} style={{ ...C.input, flex: 1 }} />
+                    <input placeholder="Data (DD/MM/AAAA)" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} style={{ ...C.input, width: isMobile ? "100%" : 140 }} />
+                  </div>
+                  {currentCustomType.fields.map(f => (
+                     <div key={f.id}>
+                        <span style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4, display: "block" }}>{f.name}</span>
+                        <textarea placeholder={`Preencha o campo '${f.name}'...`} value={form.customFields[f.id] || ""} onChange={e => setForm({...form, customFields: {...form.customFields, [f.id]: e.target.value}})} style={{ ...C.input, minHeight: 60, resize: "vertical" }} />
+                     </div>
+                  ))}
+               </div>
+            ) : tab === "changes" ? (
               <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
                 <input placeholder="Número da Change (ex: CHG-123) *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} style={{ ...C.input, flex: 1 }} />
                 <select value={form.team} onChange={e => setForm({ ...form, team: e.target.value })} style={{ ...C.input, flex: 1 }}>
@@ -2059,13 +2146,15 @@ function NotesModule({ notes, setNotes, teams, isMobile }) {
               </div>
             )}
             
-            <input placeholder="Tags (separadas por vírgula)" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} style={C.input} />
+            <input placeholder="Tags para busca (separadas por vírgula)" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} style={C.input} />
 
-            <textarea placeholder={tab === "changes" ? "Itens entregues..." : tab === "feedbacks" ? "Pontos fortes e oportunidades detalhadas..." : "Conteúdo detalhado..."} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })}
-              style={{ ...C.input, minHeight: 100, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} />
+            {!currentCustomType && (
+               <textarea placeholder={tab === "changes" ? "Itens entregues..." : tab === "feedbacks" ? "Pontos fortes e oportunidades detalhadas..." : "Conteúdo detalhado..."} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })}
+                 style={{ ...C.input, minHeight: 100, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} />
+            )}
             
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={saveNote} style={C.btn(color)}>Salvar</button>
+              <button onClick={saveNote} style={C.btn(color)}>Salvar Documento</button>
               <button onClick={() => setShowForm(false)} style={C.btn("#1e2130")}>Cancelar</button>
             </div>
           </div>
@@ -2074,7 +2163,7 @@ function NotesModule({ notes, setNotes, teams, isMobile }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {current.length === 0
-          ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>Nenhuma entrada encontrada.</div>
+          ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>Nenhum documento encontrado nesta aba.</div>
           : current.map(note => (
             <div key={note.id} style={{ ...C.card, borderLeft: `4px solid ${color}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -2092,7 +2181,22 @@ function NotesModule({ notes, setNotes, teams, isMobile }) {
                   <button onClick={() => deleteNote(note.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 13, padding: "0 0 0 8px" }}>🗑</button>
                 </div>
               </div>
-              {note.content && <p style={{ fontSize: 13, color: "#9ca3af", margin: "10px 0 0", lineHeight: 1.7, whiteSpace: "pre-wrap", borderTop: "1px solid #1e2130", paddingTop: 10 }}>{note.content}</p>}
+
+              {/* Renderização Dinâmica de Campos vs Texto Padrão */}
+              {currentCustomType ? (
+                 <div style={{ marginTop: 10, borderTop: "1px solid #1e2130", paddingTop: 10 }}>
+                   {currentCustomType.fields.map(f => (
+                     note.customFields && note.customFields[f.id] && (
+                       <div key={f.id} style={{ marginBottom: 8 }}>
+                         <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, textTransform: "uppercase" }}>{f.name}</span>
+                         <p style={{ fontSize: 13, color: "#e8eaf0", margin: "2px 0 0", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{note.customFields[f.id]}</p>
+                       </div>
+                     )
+                   ))}
+                 </div>
+              ) : (
+                 note.content && <p style={{ fontSize: 13, color: "#9ca3af", margin: "10px 0 0", lineHeight: 1.7, whiteSpace: "pre-wrap", borderTop: "1px solid #1e2130", paddingTop: 10 }}>{note.content}</p>
+              )}
             </div>
           ))
         }
@@ -2104,9 +2208,8 @@ function NotesModule({ notes, setNotes, teams, isMobile }) {
 // ─── 10. Main App Wrapper (Autenticação + Sincronização) ──────────────────────
 function MainApp({ user }) {
   const isMobile = useIsMobile()
-  const [activeModule, setActiveModule] = useState("timeclock") // Mudado para começar na nova aba
+  const [activeModule, setActiveModule] = useState("timeclock")
   
-  // Utilizando o hook inteligente para puxar os dados do Firebase, ou usar o padrão se novo
   const [teams, setTeams, tLoaded] = useSyncedState("teams", INIT_TEAMS, user);
   const [tasks, setTasks, tkLoaded] = useSyncedState("tasks", INIT_TASKS, user);
   const [interruptions, setInterruptions, intLoaded] = useSyncedState("interruptions", [], user);
@@ -2115,12 +2218,16 @@ function MainApp({ user }) {
   const [events, setEvents, evLoaded] = useSyncedState("events", [], user);
   const [alerts, setAlerts, altLoaded] = useSyncedState("alerts", [], user);
   const [timesheet, setTimesheet, tsLoaded] = useSyncedState("timesheet", INIT_TIMESHEET, user);
+  
+  // ATUALIZADO: Novo estado sincronizado para as configurações (tipos) de notas
+  const [noteSettings, setNoteSettings, nsLoaded] = useSyncedState("noteSettings", { customTypes: [] }, user);
 
   const [pomo, setPomo] = useState({ running: false, seconds: 25 * 60, initialSec: 25 * 60, isBreak: false, cycles: 0 })
   const [activeAlert, setActiveAlert] = useState(null)
   const [dbError, setDbError] = useState(false)
 
-  const allLoaded = tLoaded && tkLoaded && intLoaded && nLoaded && indLoaded && evLoaded && altLoaded && tsLoaded;
+  // ATUALIZADO: Espera nsLoaded também
+  const allLoaded = tLoaded && tkLoaded && intLoaded && nLoaded && indLoaded && evLoaded && altLoaded && tsLoaded && nsLoaded;
 
   useEffect(() => {
     const handleDbError = () => setDbError(true);
@@ -2182,7 +2289,8 @@ function MainApp({ user }) {
 
   const handleLogout = () => signOut(auth);
 
-  const sharedProps = { teams, setTeams, tasks, setTasks, interruptions, setInterruptions, notes, setNotes, indicators, setIndicators, timesheet, setTimesheet, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts }
+  // ATUALIZADO: Passando noteSettings via props
+  const sharedProps = { teams, setTeams, tasks, setTasks, interruptions, setInterruptions, notes, setNotes, indicators, setIndicators, timesheet, setTimesheet, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts, noteSettings, setNoteSettings }
 
   return (
     <div style={{ fontFamily: "'Manrope',sans-serif", background: "#0a0b0f", color: "#e8eaf0", minHeight: "100vh", position: "relative" }}>
