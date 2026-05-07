@@ -79,6 +79,29 @@ const isWeekend = (dateStr) => {
   return d.getDay() === 0 || d.getDay() === 6;
 }
 
+const calcDay = (dateStr, punches = [], isHoliday = false, nowDateObj = null, dayAdjustmentsTotal = 0) => {
+  let workedMins = 0; let expectedEnd = null; let isRunning = punches.length % 2 !== 0;
+  for (let i = 0; i < punches.length; i += 2) {
+    let start = parseTime(punches[i]); let end = punches[i+1] ? parseTime(punches[i+1]) : null;
+    if (end !== null) workedMins += (end - start);
+    else if (dateStr === todayStr() && nowDateObj) { 
+       let nowMins = nowDateObj.getHours() * 60 + nowDateObj.getMinutes(); 
+       workedMins += Math.max(0, nowMins - start); 
+    }
+  }
+  let reqMins = (isWeekend(dateStr) || isHoliday || dateStr > todayStr()) ? 0 : 480;
+  let balance = workedMins - reqMins;
+  
+  if (isRunning && reqMins > 0) {
+    let lastStart = parseTime(punches[punches.length - 1]); let fixedWorked = 0;
+    for (let i = 0; i < punches.length - 1; i += 2) fixedWorked += (parseTime(punches[i+1]) - parseTime(punches[i]));
+    let remaining = reqMins - fixedWorked - dayAdjustmentsTotal;
+    if (remaining > 0) expectedEnd = lastStart + remaining;
+    else expectedEnd = lastStart;
+  }
+  return { workedMins, balance, expectedEnd, isRunning, reqMins, netBalance: balance + dayAdjustmentsTotal };
+}
+
 // ─── 2. Hooks de Sistema & Firebase Sync ──────────────────────────────────────
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
@@ -1182,14 +1205,8 @@ function ProductivityModule({ researchItems, setResearchItems, tasks, setTasks, 
 }
 
 // ─── 7.5. Módulo Controlador de Ponto ─────────────────────────────────────────
-function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
+function TimeclockModule({ timesheet, setTimesheet, isMobile, nowDate }) {
   const color = "#14b8a6";
-  const [nowDate, setNowDate] = useState(new Date());
-
-  useEffect(() => {
-    const t = setInterval(() => setNowDate(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   const [retroForm, setRetroForm] = useState({ date: todayStr(), time: "" });
   const [adjForm, setAdjForm] = useState({ date: todayStr(), hours: "", minutes: "", type: "subtract", obs: "" });
@@ -1197,24 +1214,6 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
   const [absenceForm, setAbsenceForm] = useState({ startDate: todayStr(), endDate: todayStr(), type: "Férias", description: "" });
   const [showAbsenceForm, setShowAbsenceForm] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() => todayStr().substring(0, 7));
-
-  const calcDay = (dateStr, punches, isHoliday) => {
-    let workedMins = 0; let expectedEnd = null; let isRunning = punches.length % 2 !== 0;
-    for (let i = 0; i < punches.length; i += 2) {
-      let start = parseTime(punches[i]); let end = punches[i+1] ? parseTime(punches[i+1]) : null;
-      if (end !== null) workedMins += (end - start);
-      else if (dateStr === todayStr()) { let nowMins = nowDate.getHours() * 60 + nowDate.getMinutes(); workedMins += (nowMins - start); }
-    }
-    let reqMins = (isWeekend(dateStr) || isHoliday || dateStr > todayStr()) ? 0 : 480;
-    let balance = workedMins - reqMins;
-    if (isRunning && reqMins > 0) {
-      let lastStart = parseTime(punches[punches.length - 1]); let fixedWorked = 0;
-      for (let i = 0; i < punches.length - 1; i += 2) fixedWorked += (parseTime(punches[i+1]) - parseTime(punches[i]));
-      let remaining = reqMins - fixedWorked;
-      if (remaining > 0) expectedEnd = lastStart + remaining;
-    }
-    return { workedMins, balance, expectedEnd, isRunning, reqMins };
-  }
 
   const punchCurrent = () => {
     const d = todayStr(); const h = String(nowDate.getHours()).padStart(2, '0'); const m = String(nowDate.getMinutes()).padStart(2, '0');
@@ -1283,14 +1282,15 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
 
   let globalBalance = 0; const allDatesSet = new Set([todayStr().substring(0, 7)]);
   Object.keys(timesheet.days).forEach(date => {
-    const day = timesheet.days[date]; const calc = calcDay(date, day.punches, day.isHoliday); globalBalance += calc.balance; allDatesSet.add(date.substring(0, 7));
+    const calc = calcDay(date, timesheet.days[date].punches, timesheet.days[date].isHoliday, nowDate);
+    globalBalance += calc.balance; allDatesSet.add(date.substring(0, 7));
   });
   (timesheet.adjustments || []).forEach(adj => { globalBalance += adj.minutes; allDatesSet.add(adj.date.substring(0, 7)); });
   const uniqueMonths = [...allDatesSet].sort((a,b) => b.localeCompare(a));
 
   let initialMonthBalance = 0; let currentMonthNetBalance = 0;
   Object.keys(timesheet.days).forEach(date => {
-    const calc = calcDay(date, timesheet.days[date].punches, timesheet.days[date].isHoliday); const mStr = date.substring(0, 7);
+    const calc = calcDay(date, timesheet.days[date].punches, timesheet.days[date].isHoliday, nowDate); const mStr = date.substring(0, 7);
     if (date < selectedMonth + "-01") initialMonthBalance += calc.balance;
     else if (mStr === selectedMonth) currentMonthNetBalance += calc.balance;
   });
@@ -1301,9 +1301,14 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
   });
   const finalMonthBalance = initialMonthBalance + currentMonthNetBalance;
 
-  const daysInMonth = Object.keys(timesheet.days).filter(date => date.startsWith(selectedMonth)).sort((a,b) => b.localeCompare(a));
+  const monthDates = new Set();
+  Object.keys(timesheet.days).filter(d => d.startsWith(selectedMonth)).forEach(d => monthDates.add(d));
+  (timesheet.adjustments || []).filter(a => a.date.startsWith(selectedMonth)).forEach(a => monthDates.add(a.date));
+  const daysInMonth = Array.from(monthDates).sort((a,b) => b.localeCompare(a));
+
   const todayData = timesheet.days[todayStr()] || { punches: [], isHoliday: false, obs: "" };
-  const todayCalc = calcDay(todayStr(), todayData.punches, todayData.isHoliday);
+  const todayAdjs = (timesheet.adjustments || []).filter(a => a.date === todayStr()).reduce((sum, a) => sum + a.minutes, 0);
+  const todayCalc = calcDay(todayStr(), todayData.punches, todayData.isHoliday, nowDate, todayAdjs);
 
   return (
     <div>
@@ -1422,7 +1427,12 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
         {daysInMonth.length === 0 ? <p style={{ textAlign: "center", color: "#6b7280", padding: 30 }}>Nenhuma marcação registrada neste mês.</p> : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {daysInMonth.map(date => {
-               const dayObj = timesheet.days[date]; const calc = calcDay(date, dayObj.punches, dayObj.isHoliday); const isFutureDay = date > todayStr();
+               const dayObj = timesheet.days[date] || { punches: [], isHoliday: false, obs: "" };
+               const dayAdjs = (timesheet.adjustments || []).filter(a => a.date === date);
+               const dayAdjsTotal = dayAdjs.reduce((sum, a) => sum + a.minutes, 0);
+               const calc = calcDay(date, dayObj.punches, dayObj.isHoliday, nowDate, dayAdjsTotal); 
+               const isFutureDay = date > todayStr();
+               
                return (
                  <div key={date} style={{ background: "#0a0b0f", border: "1px solid #1e2130", borderRadius: 8, padding: 12, display: "flex", flexDirection: isMobile ? "column" : "row", gap: 16, alignItems: isMobile ? "stretch" : "flex-start" }}>
                    <div style={{ width: 100, flexShrink: 0 }}>
@@ -1431,7 +1441,7 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
                       <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#9ca3af", cursor: "pointer" }}><input type="checkbox" checked={dayObj.isHoliday} onChange={() => toggleHoliday(date)} /> Feriado</label>
                    </div>
                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-                      {dayObj.punches.length === 0 ? <span style={{ fontSize: 12, color: "#4b5563", fontStyle: "italic" }}>Sem marcações</span> : (
+                      {dayObj.punches.length === 0 ? <span style={{ fontSize: 12, color: "#4b5563", fontStyle: "italic" }}>Sem marcações físicas</span> : (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                           {dayObj.punches.map((p, idx) => (
                              <div key={idx} style={{ display: "flex", alignItems: "center", background: "#1e2130", padding: "4px 8px", borderRadius: 6, gap: 6, border: `1px solid ${idx % 2 === 0 ? color+'44' : '#ef444444'}` }}>
@@ -1441,13 +1451,24 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
                           ))}
                         </div>
                       )}
+                      
+                      {dayAdjs.length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                              {dayAdjs.map(adj => (
+                                  <span key={adj.id} style={{ fontSize: 10, background: "#3b82f633", color: "#3b82f6", padding: "2px 6px", borderRadius: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                                      Ajuste: {formatBalance(adj.minutes)} <span title={adj.obs} style={{ cursor: "help" }}>ℹ️</span>
+                                  </span>
+                              ))}
+                          </div>
+                      )}
+
                       {calc.isRunning && <p style={{ fontSize: 11, color: "#ef4444", margin: "0", fontWeight: 600 }}>Ponto Aberto - Trabalhando agora...</p>}
                       <textarea placeholder="Comentários/Observações (ex: motivo de hora extra, atestado, folga, etc)..." value={dayObj.obs || ""} onChange={(e) => updateDayObs(date, e.target.value)} style={{ ...C.input, minHeight: 40, fontSize: 11, resize: "vertical", background: "#12141a", padding: "6px 10px", border: "1px dashed #2a2f40", color: "#9ca3af" }} />
                    </div>
                    <div style={{ width: isMobile ? "100%" : 180, display: "flex", flexDirection: "column", gap: 6, borderLeft: isMobile ? "none" : "1px solid #1e2130", paddingTop: isMobile ? 10 : 0, paddingLeft: isMobile ? 0 : 16, borderTop: isMobile ? "1px solid #1e2130" : "none" }}>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 11, color: "#9ca3af" }}>Trabalhado:</span><span style={{ fontSize: 12, fontWeight: 700 }}>{formatTimeMins(calc.workedMins)}</span></div>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 11, color: "#9ca3af" }}>Meta Diária:</span><span style={{ fontSize: 12, fontWeight: 700 }}>{formatTimeMins(calc.reqMins)} {calc.reqMins === 0 && <span style={{fontSize:9, color:"#a855f7"}}>(100% Extra)</span>}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between", background: calc.balance > 0 ? `${color}18` : calc.balance < 0 ? "#ef444418" : "#1e2130", padding: "4px 8px", borderRadius: 4 }}><span style={{ fontSize: 11, fontWeight: 600, color: calc.balance > 0 ? color : calc.balance < 0 ? "#ef4444" : "#e8eaf0" }}>Saldo Dia:</span><span style={{ fontSize: 12, fontWeight: 800, color: calc.balance > 0 ? color : calc.balance < 0 ? "#ef4444" : "#e8eaf0" }}>{formatBalance(calc.balance)}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", background: calc.netBalance > 0 ? `${color}18` : calc.netBalance < 0 ? "#ef444418" : "#1e2130", padding: "4px 8px", borderRadius: 4 }}><span style={{ fontSize: 11, fontWeight: 600, color: calc.netBalance > 0 ? color : calc.netBalance < 0 ? "#ef4444" : "#e8eaf0" }}>Saldo Dia:</span><span style={{ fontSize: 12, fontWeight: 800, color: calc.netBalance > 0 ? color : calc.netBalance < 0 ? "#ef4444" : "#e8eaf0" }}>{formatBalance(calc.netBalance)}</span></div>
                    </div>
                  </div>
                )
@@ -1895,6 +1916,15 @@ function MainApp({ user }) {
   const [activeAlert, setActiveAlert] = useState(null)
   const [dbError, setDbError] = useState(false)
 
+  const overtimeRef = useRef("");
+
+  const [nowDate, setNowDate] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNowDate(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const allLoaded = tLoaded && tkLoaded && resLoaded && nLoaded && indLoaded && evLoaded && altLoaded && tsLoaded && nsLoaded;
 
   useEffect(() => {
@@ -1920,10 +1950,14 @@ function MainApp({ user }) {
     return () => clearInterval(interval)
   }, [pomo.running])
 
+  // Processamento de Alertas e Ponto Extra
   useEffect(() => {
     if (!allLoaded) return;
-    const interval = setInterval(() => {
-      const now = new Date(); const currDate = todayStr(); const currTime = fmtTime(now.getHours() * 60 + now.getMinutes());
+    const currDate = todayStr(); 
+    const currTime = fmtTime(nowDate.getHours() * 60 + nowDate.getMinutes());
+    
+    // Alertas normais (a cada 5 segundos validamos para não rodar freneticamente)
+    if (nowDate.getSeconds() % 5 === 0) {
       setAlerts(prev => {
         let triggeredAny = false;
         const next = prev.map(a => {
@@ -1934,9 +1968,23 @@ function MainApp({ user }) {
         });
         return triggeredAny ? next : prev;
       });
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [allLoaded, setAlerts]);
+    }
+
+    // Validação de Alerta de Hora Extra do Ponto
+    const tDay = timesheet.days[currDate] || { punches: [], isHoliday: false };
+    const tAdjs = (timesheet.adjustments || []).filter(a => a.date === currDate).reduce((acc, a) => acc + a.minutes, 0);
+    const tCalc = calcDay(currDate, tDay.punches, tDay.isHoliday, nowDate, tAdjs);
+
+    if (tCalc.isRunning && tCalc.netBalance >= 0 && tCalc.reqMins > 0) {
+        if (overtimeRef.current !== currDate && tCalc.netBalance === 0) {
+            playBeep();
+            setActiveAlert({ text: "Você atingiu 8 horas de trabalho (meta diária)! As horas extras começaram a ser contabilizadas.", date: currDate, time: currTime });
+            overtimeRef.current = currDate;
+        } else if (overtimeRef.current !== currDate && tCalc.netBalance > 0) {
+            overtimeRef.current = currDate; // Atualiza a ref silenciosamente se logou e já estava com hora extra rolando
+        }
+    }
+  }, [nowDate, allLoaded, timesheet, setAlerts]);
 
   if (!allLoaded) return <div style={{ background: "#0a0b0f", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", color: "#6b7280", fontFamily: "'Manrope',sans-serif" }}>Sincronizando seus dados...</div>;
 
@@ -1945,9 +1993,34 @@ function MainApp({ user }) {
   const myDayCount   = tasks.filter(t => checkIsToday(t) && t.status !== "done").length
   const today        = new Date()
 
+  // Calculando dados para o Widget Lateral do Ponto
+  const todayDataWidget = timesheet.days[todayStr()] || { punches: [], isHoliday: false };
+  const todayAdjsWidget = (timesheet.adjustments || []).filter(a => a.date === todayStr()).reduce((acc, a) => acc + a.minutes, 0);
+  const widgetCalc = calcDay(todayStr(), todayDataWidget.punches, todayDataWidget.isHoliday, nowDate, todayAdjsWidget);
+  
+  let widgetContent = null;
+  if (widgetCalc.isRunning || widgetCalc.workedMins > 0 || todayAdjsWidget !== 0) {
+      const diff = widgetCalc.netBalance;
+      if (diff < 0) {
+          widgetContent = (
+             <div style={{ flex: 1, background: "#ef4444" + "22", borderRadius: 6, padding: "5px 8px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }} title="Horas para fechar o ponto">
+               <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#ef4444", fontVariantNumeric: "tabular-nums" }}>{formatTimeMins(Math.abs(diff))}</p>
+               <p style={{ margin: 0, fontSize: 9, color: "#ef4444", whiteSpace: "nowrap" }}>Ponto: Faltam</p>
+             </div>
+          )
+      } else {
+          widgetContent = (
+             <div style={{ flex: 1, background: "#22c55e" + "22", borderRadius: 6, padding: "5px 8px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }} title="Horas extras feitas hoje">
+               <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#22c55e", fontVariantNumeric: "tabular-nums" }}>+{formatTimeMins(diff)}</p>
+               <p style={{ margin: 0, fontSize: 9, color: "#22c55e", whiteSpace: "nowrap" }}>Ponto: Extra</p>
+             </div>
+          )
+      }
+  }
+
   const handleLogout = () => signOut(auth);
 
-  const sharedProps = { teams, setTeams, tasks, setTasks, researchItems, setResearchItems, notes, setNotes, indicators, setIndicators, timesheet, setTimesheet, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts, noteSettings, setNoteSettings }
+  const sharedProps = { teams, setTeams, tasks, setTasks, researchItems, setResearchItems, notes, setNotes, indicators, setIndicators, timesheet, setTimesheet, isMobile, pomo, setPomo, events, setEvents, alerts, setAlerts, noteSettings, setNoteSettings, nowDate }
 
   return (
     <div style={{ fontFamily: "'Manrope',sans-serif", background: "#0a0b0f", color: "#e8eaf0", minHeight: "100vh", position: "relative" }}>
@@ -1980,15 +2053,16 @@ function MainApp({ user }) {
             <p style={{ fontSize: 10, color: "#374151", margin: "0 0 10px" }}>{today.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })}</p>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               <div style={{ flex: 1, background: "#f97316" + "22", borderRadius: 6, padding: "5px 8px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#f97316" }}>{myDayCount}</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#f97316", fontVariantNumeric: "tabular-nums" }}>{myDayCount}</p>
                 <p style={{ margin: 0, fontSize: 9, color: "#6b7280" }}>Hoje</p>
               </div>
               {overdueCount > 0 && (
                 <div style={{ flex: 1, background: "#ef4444" + "22", borderRadius: 6, padding: "5px 8px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#ef4444" }}>{overdueCount}</p>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#ef4444", fontVariantNumeric: "tabular-nums" }}>{overdueCount}</p>
                   <p style={{ margin: 0, fontSize: 9, color: "#6b7280" }}>Vencidas</p>
                 </div>
               )}
+              {widgetContent}
               {pomo.running && <div style={{ width: "100%", height: 38, marginTop: 4 }}><MiniPomoHeader pomo={pomo} /></div>}
             </div>
             <button onClick={handleLogout} style={{ ...C.btn("transparent"), color: "#ef4444", fontSize: 12, marginTop: 10, width: "100%", padding: "8px" }}>🚪 Sair da Conta</button>
