@@ -702,6 +702,8 @@ function TasksModule({ tasks, setTasks, isMobile }) {
   const [taskEditForm, setTaskEditForm] = useState({})
   const [form, setForm] = useState({ title: "", deadline: "", priority: "Média", delegable: false, tags: "", myDay: false, forTomorrow: false, notes: "" })
 
+  const [draggedTaskId, setDraggedTaskId] = useState(null)
+
   const overdueCount  = tasks.filter(t => isPast(t.deadline) && t.status !== "done").length
   const myDayCount    = tasks.filter(t => checkIsToday(t) && t.status !== "done").length
   const tomorrowCount = tasks.filter(t => checkIsTomorrow(t) && t.status !== "done").length
@@ -730,17 +732,30 @@ function TasksModule({ tasks, setTasks, isMobile }) {
   const editSubtask = (tid, sid, newText) => setTasks(prev => prev.map(t => t.id === tid ? { ...t, subtasks: t.subtasks.map(s => s.id === sid ? { ...s, text: newText } : s) } : t))
   const updateTaskNotes = (id, newNotes) => setTasks(prev => prev.map(t => t.id === id ? { ...t, notes: newNotes } : t))
 
-  const moveTask = (id, direction) => {
-    const idx = tasks.findIndex(t => t.id === id)
-    if (idx < 0) return
-    const newTasks = [...tasks]; let targetIdx = idx + direction
-    while (targetIdx >= 0 && targetIdx < newTasks.length) {
-       const t = newTasks[targetIdx]
-       const inView = (view === "today" && checkIsToday(t) && t.status !== "done") || (view === "tomorrow" && checkIsTomorrow(t) && t.status !== "done") || (view === "overdue" && isPast(t.deadline) && t.status !== "done") || (view === "backlog" && t.status !== "done") || (view === "done" && t.status === "done")
-       if (inView) { [newTasks[idx], newTasks[targetIdx]] = [newTasks[targetIdx], newTasks[idx]]; setTasks(newTasks); break }
-       targetIdx += direction
-    }
-  }
+  const handleDragStart = (e, id) => {
+    setDraggedTaskId(id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e, targetId) => {
+    e.preventDefault();
+    if (!draggedTaskId || draggedTaskId === targetId) return;
+    
+    const newTasks = [...tasks];
+    const draggedIdx = newTasks.findIndex(t => t.id === draggedTaskId);
+    const targetIdx = newTasks.findIndex(t => t.id === targetId);
+
+    const [draggedTask] = newTasks.splice(draggedIdx, 1);
+    newTasks.splice(targetIdx, 0, draggedTask);
+
+    setTasks(newTasks);
+    setDraggedTaskId(null);
+  };
 
   const ORDER = { Urgente: 0, Alta: 1, Média: 2, Baixa: 3, Baixíssima: 4 }
   let visible = tasks.filter(t => {
@@ -772,7 +787,7 @@ function TasksModule({ tasks, setTasks, isMobile }) {
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <input placeholder="Buscar tag ou título..." value={filterText} onChange={e => setFilterText(e.target.value)} style={{ ...C.input, flex: 1, minWidth: 150 }} />
         <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ ...C.input, width: "auto" }} title="Buscar por data" />
-        <select value={filterPri} onChange={e => setFilterPri(e.target.value)} style={{ ...C.input, width: "auto", minWidth: 130 }}><option value="">Todas Prioridades</option>{Object.keys(PRIORITY_COLORS).map(p => <option key={p} value={p}>{p}</option>)}</select>
+        <select value={filterPri} onChange={e => setFilterPri(e.target.value)} style={{ ...C.input, width: "auto", minWidth: 130 }}><option value="">Todas Prioridades</option>{Object.keys(PRIORITY_COLORS).map(p => <option key={p}>{p}</option>)}</select>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...C.input, width: "auto", minWidth: 130 }}><option value="manual">Ordem Manual</option><option value="priority">Por Prioridade</option><option value="deadline">Por Vencimento</option></select>
       </div>
 
@@ -829,15 +844,18 @@ function TasksModule({ tasks, setTasks, isMobile }) {
           }
 
           return (
-            <div key={task.id} style={{ ...C.card, borderLeft: `4px solid ${pc}`, opacity: task.status === "done" ? 0.65 : 1 }}>
+            <div key={task.id} 
+                 style={{ ...C.card, borderLeft: `4px solid ${pc}`, opacity: task.status === "done" ? 0.65 : 1, transition: "transform 0.15s, box-shadow 0.15s", transform: draggedTaskId === task.id ? "scale(1.02)" : "scale(1)", boxShadow: draggedTaskId === task.id ? "0 10px 20px rgba(0,0,0,0.5)" : "none" }}
+                 draggable={sortBy === "manual"}
+                 onDragStart={(e) => handleDragStart(e, task.id)}
+                 onDragOver={handleDragOver}
+                 onDrop={(e) => handleDrop(e, task.id)}
+            >
               <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                 {sortBy === "manual" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <button onClick={() => moveTask(task.id, -1)} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 14, padding: 0 }}>↑</button>
-                    <button onClick={() => moveTask(task.id, 1)} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 14, padding: 0 }}>↓</button>
-                  </div>
+                  <div style={{ cursor: "grab", color: "#4b5563", fontSize: 18, display: "flex", alignItems: "center", padding: "0 4px" }} title="Arraste para reordenar">⋮⋮</div>
                 )}
-                <div style={{ paddingTop: sortBy === "manual" ? 4 : 1, flexShrink: 0 }}><Checkbox checked={task.status === "done"} onChange={() => toggleDone(task.id)} color={pc} /></div>
+                <div style={{ paddingTop: 1, flexShrink: 0 }}><Checkbox checked={task.status === "done"} onChange={() => toggleDone(task.id)} color={pc} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontWeight: 600, fontSize: 14, margin: "0 0 6px", textDecoration: task.status === "done" ? "line-through" : "none", color: task.status === "done" ? "#6b7280" : "#e8eaf0", wordBreak: "break-word" }}>{task.title}</p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
@@ -848,7 +866,7 @@ function TasksModule({ tasks, setTasks, isMobile }) {
                     {(task.notes || task.subtasks.length > 0) && <span style={{ fontSize: 11, color: "#6b7280", marginLeft: 4 }}>{task.subtasks.length > 0 && `📋 ${task.subtasks.filter(s=>s.done).length}/${task.subtasks.length} `}{task.notes && `📝 Anot.`}</span>}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 4, flexShrink: 0, paddingTop: sortBy === "manual" ? 4 : 0 }}>
+                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                   <button onClick={() => toggleTomorrow(task.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, opacity: isTomorrow ? 1 : 0.2, padding: "2px 3px", transition: "opacity 0.2s" }} title={isTomorrow ? "Remover do Amanhã" : "Programar para Amanhã"}>🌅</button>
                   <button onClick={() => toggleMyDay(task.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, opacity: isToday ? 1 : 0.2, padding: "2px 3px", transition: "opacity 0.2s" }} title={isToday ? "Remover do Hoje" : "Adicionar ao Hoje"}>☀️</button>
                   <button onClick={() => setExpanded(expanded === task.id ? null : task.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 12, padding: "2px 4px" }}>{expanded === task.id ? "▲" : "▼"}</button>
@@ -872,8 +890,12 @@ function ProductivityModule({ researchItems, setResearchItems, tasks, setTasks, 
   const [customPomo, setCustomPomo] = useState("")
 
   // Checklist de Aprendizado
+  const [resTab, setResTab] = useState("pending")
   const [researchText, setResearchText] = useState("")
-  const [researchAction, setResearchAction] = useState("Pesquisar") // Estudar, Pesquisar, Entender
+  const [researchAction, setResearchAction] = useState("Pesquisar")
+  
+  const [editingResId, setEditingResId] = useState(null)
+  const [resEditForm, setResEditForm] = useState({ text: "", action: "", resultNote: "" })
 
   const [calDate, setCalDate] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(null)
@@ -889,13 +911,24 @@ function ProductivityModule({ researchItems, setResearchItems, tasks, setTasks, 
   // Funções do Checklist de Aprendizado
   const addResearch = () => {
     if (!researchText.trim()) return
-    const newItem = { id: Date.now(), text: researchText, action: researchAction, done: false, createdAt: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }
+    const newItem = { id: Date.now(), text: researchText, action: researchAction, done: false, resultNote: "", createdAt: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }
     setResearchItems(prev => [newItem, ...prev])
     setResearchText(""); setResearchAction("Pesquisar");
   }
 
   const toggleRes = (id) => setResearchItems(prev => prev.map(i => i.id === id ? { ...i, done: !i.done } : i))
   const deleteRes = (id) => setResearchItems(prev => prev.filter(i => i.id !== id)) 
+
+  const startEditRes = (item) => {
+    setResEditForm({ text: item.text, action: item.action, resultNote: item.resultNote || "" })
+    setEditingResId(item.id)
+  }
+
+  const saveEditRes = (id) => {
+    if (!resEditForm.text.trim()) return
+    setResearchItems(prev => prev.map(i => i.id === id ? { ...i, text: resEditForm.text, action: resEditForm.action, resultNote: resEditForm.resultNote } : i))
+    setEditingResId(null)
+  }
 
   const turnIntoTask = (id) => {
     const item = researchItems.find(i => i.id === id)
@@ -926,6 +959,7 @@ function ProductivityModule({ researchItems, setResearchItems, tasks, setTasks, 
   }
 
   const sortedResearch = [...researchItems].sort((a,b) => b.id - a.id)
+  const visibleRes = sortedResearch.filter(i => resTab === "pending" ? !i.done : i.done)
 
   const firstDay = new Date(calDate.getFullYear(), calDate.getMonth(), 1).getDay()
   const daysInMonth = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0).getDate()
@@ -1039,13 +1073,17 @@ function ProductivityModule({ researchItems, setResearchItems, tasks, setTasks, 
     )
   }
 
+  const RES_TABS = [
+    { id: "pending", label: `Pendentes (${sortedResearch.filter(i => !i.done).length})` },
+    { id: "done", label: `Concluídos (${sortedResearch.filter(i => i.done).length})` }
+  ]
+
   return (
     <div>
       <ModuleHeader title="Produtividade" subtitle="Mantenha o foco e capture aprendizados" color={color} isMobile={isMobile} />
 
       <Pomodoro />
 
-      {/* Checklist de Aprendizado */}
       <div style={{ ...C.card, borderLeft: `4px solid ${color}`, marginBottom: 16 }}>
         <p style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, marginBottom: 10 }}>📚 Checklist de Aprendizado</p>
         <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8 }}>
@@ -1060,35 +1098,58 @@ function ProductivityModule({ researchItems, setResearchItems, tasks, setTasks, 
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 280px", gap: 20 }}>
-        {/* Lista do Checklist */}
         <div>
            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-             <span style={C.lbl}>Termos para Pesquisar ({sortedResearch.filter(i => !i.done).length} pendentes)</span>
+             <ScrollTabs tabs={RES_TABS} active={resTab} onSelect={setResTab} color={color} />
            </div>
 
            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {sortedResearch.length === 0 ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 32 }}>Nenhum termo na lista. Tudo dominado! 🧠</div> : sortedResearch.map(item => (
-                <div key={item.id} style={{...C.card, borderLeft: `4px solid ${item.done ? '#4b5563' : color}`, opacity: item.done ? 0.5 : 1 }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                        <div style={{ marginTop: 2 }}><Checkbox checked={item.done} onChange={() => toggleRes(item.id)} color={color} /></div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                                <span style={{ ...C.tag(color), padding: "2px 6px", fontSize: 9 }}>{item.action}</span>
-                                <span style={{ fontSize: 10, color: "#6b7280" }}>{item.createdAt}</span>
+            {visibleRes.length === 0 ? <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 32 }}>Nenhum termo nesta lista.</div> : visibleRes.map(item => (
+                <div key={item.id} style={{...C.card, borderLeft: `4px solid ${item.done ? '#4b5563' : color}`, opacity: item.done ? 0.6 : 1 }}>
+                    {editingResId === item.id ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            <div style={{ display: "flex", gap: 8, flexDirection: isMobile ? "column" : "row" }}>
+                                <select value={resEditForm.action} onChange={e => setResEditForm({...resEditForm, action: e.target.value})} style={{ ...C.input, width: isMobile ? "100%" : 130 }}>
+                                    <option value="Pesquisar">Pesquisar</option>
+                                    <option value="Estudar">Estudar</option>
+                                    <option value="Entender">Entender</option>
+                                </select>
+                                <input placeholder="Termo..." value={resEditForm.text} onChange={e => setResEditForm({...resEditForm, text: e.target.value})} style={{ ...C.input, flex: 1 }} />
                             </div>
-                            <p style={{ fontWeight: 600, margin: 0, fontSize: 14, textDecoration: item.done ? "line-through" : "none", color: item.done ? "#6b7280" : "#e8eaf0", wordBreak: "break-word" }}>{item.text}</p>
+                            <textarea placeholder="Adicione a resposta ou anotação do seu aprendizado aqui..." value={resEditForm.resultNote} onChange={e => setResEditForm({...resEditForm, resultNote: e.target.value})} style={{ ...C.input, minHeight: 70, resize: "vertical" }} />
+                            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                                <button onClick={() => saveEditRes(item.id)} style={C.btn(color)}>Salvar Edição</button>
+                                <button onClick={() => setEditingResId(null)} style={C.btn("transparent")}>Cancelar</button>
+                            </div>
                         </div>
-                        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                            <button onClick={() => turnIntoTask(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#f97316", padding: "0 4px", fontSize: 12 }} title="Transformar em Tarefa">↗️ Tarefa</button>
-                            <button onClick={() => deleteRes(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: "0 4px", fontSize: 13 }}>✕</button>
+                    ) : (
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                            <div style={{ marginTop: 2 }}><Checkbox checked={item.done} onChange={() => toggleRes(item.id)} color={color} /></div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                                    <span style={{ ...C.tag(item.done ? "#6b7280" : color), padding: "2px 6px", fontSize: 9 }}>{item.action}</span>
+                                    <span style={{ fontSize: 10, color: "#6b7280" }}>{item.createdAt}</span>
+                                </div>
+                                <p style={{ fontWeight: 600, margin: 0, fontSize: 14, textDecoration: item.done ? "line-through" : "none", color: item.done ? "#6b7280" : "#e8eaf0", wordBreak: "break-word" }}>{item.text}</p>
+                                
+                                {item.resultNote && (
+                                    <div style={{ marginTop: 8, background: "#0a0b0f", padding: "8px 12px", borderRadius: 8, fontSize: 12, color: "#9ca3af", whiteSpace: "pre-wrap", borderLeft: `2px solid ${color}44` }}>
+                                        {item.resultNote}
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                                {!item.done && <button onClick={() => turnIntoTask(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#f97316", padding: "0 4px", fontSize: 12 }} title="Transformar em Tarefa">↗️ Tarefa</button>}
+                                <button onClick={() => startEditRes(item)} style={{ background: "none", border: "none", cursor: "pointer", color: "#3b82f6", padding: "0 4px", fontSize: 12 }}>✏️</button>
+                                <button onClick={() => deleteRes(item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: "0 4px", fontSize: 13 }}>✕</button>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             ))}
            </div>
         </div>
 
-        {/* Right Column: Alerts & Calendar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={C.card}>
             <span style={{ ...C.lbl, color: "#ef4444" }}>⏰ Alertas Programados</span>
@@ -1591,7 +1652,6 @@ function NotesModule({ notes, setNotes, teams, isMobile, noteSettings, setNoteSe
     setManageMode('list');
   }
 
-  // Função para mover o campo no array (para cima ou para baixo)
   const moveField = (index, direction) => {
     const newFields = [...typeForm.fields];
     if (index + direction < 0 || index + direction >= newFields.length) return;
