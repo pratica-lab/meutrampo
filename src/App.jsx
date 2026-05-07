@@ -60,7 +60,6 @@ const parseTime = (str) => {
   return (h * 60) + m;
 }
 
-// ATUALIZADO: Agora aplica % 24 para garantir formato 24h caso o tempo calculado ultrapasse 24h
 const formatTimeMins = (mins) => {
   if (mins < 0) return "--:--";
   const h = Math.floor(mins / 60) % 24; 
@@ -700,11 +699,23 @@ function TeamsModule({ teams, setTeams, isMobile }) {
 }
 
 // ─── 6. Módulo Tarefas ────────────────────────────────────────────────────────
-function SubtaskPanel({ task, onAdd, onToggle, onDelete, color, onUpdateNotes }) {
+function SubtaskPanel({ task, onAdd, onToggle, onDelete, onEditSub, color, onUpdateNotes }) {
   const [inp, setInp] = useState("")
   const [notes, setNotes] = useState(task.notes || "")
+  const [editingSubId, setEditingSubId] = useState(null)
+  const [subEditText, setSubEditText] = useState("")
 
   useEffect(() => { setNotes(task.notes || "") }, [task.notes])
+
+  const startEditSub = (sub) => {
+    setEditingSubId(sub.id)
+    setSubEditText(sub.text)
+  }
+
+  const saveEditSub = (subId) => {
+    if (subEditText.trim()) onEditSub(subId, subEditText.trim())
+    setEditingSubId(null)
+  }
 
   return (
     <div style={{ marginTop: 10, marginLeft: 30, padding: 12, background: "#0a0b0f", borderRadius: 8 }}>
@@ -719,8 +730,19 @@ function SubtaskPanel({ task, onAdd, onToggle, onDelete, color, onUpdateNotes })
           {task.subtasks.map(sub => (
             <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0" }}>
               <Checkbox checked={sub.done} onChange={() => onToggle(sub.id)} color={color} />
-              <span style={{ fontSize: 12, color: sub.done ? "#4b5563" : "#9ca3af", textDecoration: sub.done ? "line-through" : "none", flex: 1 }}>{sub.text}</span>
-              <button onClick={() => onDelete(sub.id)} style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer", padding: "2px 5px" }}>✕</button>
+              
+              {editingSubId === sub.id ? (
+                <input value={subEditText} onChange={e => setSubEditText(e.target.value)} 
+                  onKeyDown={e => e.key === "Enter" && saveEditSub(sub.id)} 
+                  onBlur={() => saveEditSub(sub.id)} autoFocus 
+                  style={{ ...C.input, padding: "4px 8px", fontSize: 12, flex: 1 }} />
+              ) : (
+                <>
+                  <span style={{ fontSize: 12, color: sub.done ? "#4b5563" : "#9ca3af", textDecoration: sub.done ? "line-through" : "none", flex: 1 }}>{sub.text}</span>
+                  <button onClick={() => startEditSub(sub)} style={{ background: "none", border: "none", color: "#3b82f6", cursor: "pointer", padding: "2px 5px", fontSize: 12 }}>✏️</button>
+                  <button onClick={() => onDelete(sub.id)} style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer", padding: "2px 5px" }}>✕</button>
+                </>
+              )}
             </div>
           ))}
           <input placeholder="Nova subtarefa (Enter)" value={inp} onChange={e => setInp(e.target.value)}
@@ -743,18 +765,40 @@ function TasksModule({ tasks, setTasks, isMobile }) {
   const [filterPri, setFilterPri] = useState("")
   const [sortBy, setSortBy] = useState("manual") 
 
-  const [form, setForm] = useState({ title: "", deadline: "", priority: "Média", delegable: false, tags: "", myDay: true, forTomorrow: false, notes: "" })
+  const [editingTaskId, setEditingTaskId] = useState(null)
+  const [taskEditForm, setTaskEditForm] = useState({})
+
+  // Flag "Hoje" vem desmarcada por padrão
+  const [form, setForm] = useState({ title: "", deadline: "", priority: "Média", delegable: false, tags: "", myDay: false, forTomorrow: false, notes: "" })
 
   const overdueCount  = tasks.filter(t => isPast(t.deadline) && t.status !== "done").length
   const myDayCount    = tasks.filter(t => checkIsToday(t) && t.status !== "done").length
   const tomorrowCount = tasks.filter(t => checkIsTomorrow(t) && t.status !== "done").length
+  const doneCount     = tasks.filter(t => t.status === "done").length
 
   const addTask = () => {
     if (!form.title.trim()) return
     const plannedDate = form.forTomorrow ? tomorrowStr() : form.myDay ? todayStr() : ""
     setTasks(prev => [...prev, { id: Date.now(), ...form, plannedDate, tags: form.tags.split(",").map(s => s.trim()).filter(Boolean), subtasks: [], status: "todo", dueDate: todayStr() }])
-    setForm({ title: "", deadline: "", priority: "Média", delegable: false, tags: "", myDay: true, forTomorrow: false, notes: "" })
+    setForm({ title: "", deadline: "", priority: "Média", delegable: false, tags: "", myDay: false, forTomorrow: false, notes: "" })
     setShowForm(false)
+  }
+
+  const startEditTask = (task) => {
+    setTaskEditForm({ ...task, tags: (task.tags||[]).join(", ") })
+    setEditingTaskId(task.id)
+  }
+
+  const saveTaskEdit = () => {
+    setTasks(prev => prev.map(t => t.id === editingTaskId ? {
+      ...t,
+      title: taskEditForm.title,
+      deadline: taskEditForm.deadline,
+      priority: taskEditForm.priority,
+      tags: taskEditForm.tags.split(",").map(s => s.trim()).filter(Boolean),
+      delegable: taskEditForm.delegable,
+    } : t))
+    setEditingTaskId(null)
   }
 
   const toggleDone = (id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, status: t.status === "done" ? "todo" : "done" } : t))
@@ -776,6 +820,7 @@ function TasksModule({ tasks, setTasks, isMobile }) {
   const addSubtask = (id, text) => setTasks(prev => prev.map(t => t.id === id ? { ...t, subtasks: [...t.subtasks, { id: Date.now(), text, done: false }] } : t))
   const toggleSubtask = (tid, sid) => setTasks(prev => prev.map(t => t.id === tid ? { ...t, subtasks: t.subtasks.map(s => s.id === sid ? { ...s, done: !s.done } : s) } : t))
   const delSubtask = (tid, sid) => setTasks(prev => prev.map(t => t.id === tid ? { ...t, subtasks: t.subtasks.filter(s => s.id !== sid) } : t))
+  const editSubtask = (tid, sid, newText) => setTasks(prev => prev.map(t => t.id === tid ? { ...t, subtasks: t.subtasks.map(s => s.id === sid ? { ...s, text: newText } : s) } : t))
   const updateTaskNotes = (id, newNotes) => setTasks(prev => prev.map(t => t.id === id ? { ...t, notes: newNotes } : t))
 
   const moveTask = (id, direction) => {
@@ -788,7 +833,8 @@ function TasksModule({ tasks, setTasks, isMobile }) {
        const inView = (view === "today" && checkIsToday(t) && t.status !== "done") ||
                       (view === "tomorrow" && checkIsTomorrow(t) && t.status !== "done") ||
                       (view === "overdue" && isPast(t.deadline) && t.status !== "done") ||
-                      (view === "backlog")
+                      (view === "backlog" && t.status !== "done") ||
+                      (view === "done" && t.status === "done")
        if (inView) {
          [newTasks[idx], newTasks[targetIdx]] = [newTasks[targetIdx], newTasks[idx]]
          setTasks(newTasks)
@@ -801,10 +847,12 @@ function TasksModule({ tasks, setTasks, isMobile }) {
   const ORDER = { Urgente: 0, Alta: 1, Média: 2, Baixa: 3, Baixíssima: 4 }
   
   let visible = tasks.filter(t => {
-    if (view === "today")    return checkIsToday(t) && t.status !== "done"
-    if (view === "tomorrow") return checkIsTomorrow(t) && t.status !== "done"
-    if (view === "overdue")  return isPast(t.deadline) && t.status !== "done"
-    return true
+    if (t.status === "done") return view === "done"
+    if (view === "today")    return checkIsToday(t)
+    if (view === "tomorrow") return checkIsTomorrow(t)
+    if (view === "overdue")  return isPast(t.deadline)
+    if (view === "done")     return false 
+    return true // Exibe o restante no backlog
   })
 
   if (filterText) visible = visible.filter(t => t.title.toLowerCase().includes(filterText.toLowerCase()) || (t.tags && t.tags.some(tag => tag.toLowerCase().includes(filterText.toLowerCase()))))
@@ -815,10 +863,11 @@ function TasksModule({ tasks, setTasks, isMobile }) {
   if (sortBy === "deadline") visible.sort((a, b) => (a.deadline || "9999-99-99").localeCompare(b.deadline || "9999-99-99"))
 
   const tabs = [
-    { id: "backlog",  label: `Backlog (${tasks.length})` },
+    { id: "backlog",  label: `Backlog (${tasks.filter(t=>t.status!=="done").length})` },
     { id: "tomorrow", label: `🌅 Amanhã (${tomorrowCount})` },
     { id: "today",    label: `☀️ Hoje (${myDayCount})` },
     { id: "overdue",  label: `⚠️ Vencidas (${overdueCount})` },
+    { id: "done",     label: `✅ Concluídas (${doneCount})` },
   ]
 
   return (
@@ -876,7 +925,7 @@ function TasksModule({ tasks, setTasks, isMobile }) {
 
       {visible.length === 0 && (
         <div style={{ ...C.card, textAlign: "center", color: "#4b5563", padding: 36 }}>
-          {filterText || filterPri || filterDate ? "Nenhuma tarefa corresponde ao filtro." : view === "today" ? "☀️ Nenhuma tarefa para hoje" : view === "tomorrow" ? "🌅 Nada programado para amanhã" : view === "overdue" ? "🎉 Sem vencidas!" : "Nenhuma tarefa"}
+          {filterText || filterPri || filterDate ? "Nenhuma tarefa corresponde ao filtro." : view === "today" ? "☀️ Nenhuma tarefa para hoje" : view === "tomorrow" ? "🌅 Nada programado para amanhã" : view === "overdue" ? "🎉 Sem vencidas!" : view === "done" ? "Ainda não há tarefas concluídas" : "Nenhuma tarefa"}
         </div>
       )}
 
@@ -887,8 +936,30 @@ function TasksModule({ tasks, setTasks, isMobile }) {
           const isToday = checkIsToday(task)
           const isTomorrow = checkIsTomorrow(task)
           
+          if (editingTaskId === task.id) {
+            return (
+              <div key={task.id} style={{ background: "#0a0b0f", padding: 12, borderRadius: 8, display: "flex", flexDirection: "column", gap: 8, border: `1px solid ${pc}` }}>
+                <input value={taskEditForm.title} onChange={e => setTaskEditForm({...taskEditForm, title: e.target.value})} style={C.input} placeholder="Título" />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <input type="date" value={taskEditForm.deadline || ""} onChange={e => setTaskEditForm({...taskEditForm, deadline: e.target.value})} style={C.input} />
+                  <select value={taskEditForm.priority} onChange={e => setTaskEditForm({...taskEditForm, priority: e.target.value})} style={C.input}>
+                    {Object.keys(PRIORITY_COLORS).map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <input value={taskEditForm.tags} onChange={e => setTaskEditForm({...taskEditForm, tags: e.target.value})} style={C.input} placeholder="Tags (vírgula)" />
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, color: "#9ca3af" }}>
+                  <input type="checkbox" checked={taskEditForm.delegable} onChange={e => setTaskEditForm({...taskEditForm, delegable: e.target.checked})} /> Delegável
+                </label>
+                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  <button onClick={saveTaskEdit} style={C.btn(pc)}>Atualizar</button>
+                  <button onClick={() => setEditingTaskId(null)} style={C.btn("transparent")}>Cancelar</button>
+                </div>
+              </div>
+            )
+          }
+
           return (
-            <div key={task.id} style={{ ...C.card, borderLeft: `4px solid ${pc}`, opacity: task.status === "done" ? 0.55 : 1 }}>
+            <div key={task.id} style={{ ...C.card, borderLeft: `4px solid ${pc}`, opacity: task.status === "done" ? 0.65 : 1 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                 {sortBy === "manual" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -900,7 +971,7 @@ function TasksModule({ tasks, setTasks, isMobile }) {
                   <Checkbox checked={task.status === "done"} onChange={() => toggleDone(task.id)} color={pc} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontWeight: 600, fontSize: 14, margin: "0 0 6px", textDecoration: task.status === "done" ? "line-through" : "none", color: task.status === "done" ? "#4b5563" : "#e8eaf0", wordBreak: "break-word" }}>
+                  <p style={{ fontWeight: 600, fontSize: 14, margin: "0 0 6px", textDecoration: task.status === "done" ? "line-through" : "none", color: task.status === "done" ? "#6b7280" : "#e8eaf0", wordBreak: "break-word" }}>
                     {task.title}
                   </p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
@@ -922,6 +993,7 @@ function TasksModule({ tasks, setTasks, isMobile }) {
                   <button onClick={() => setExpanded(expanded === task.id ? null : task.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: 12, padding: "2px 4px" }}>
                     {expanded === task.id ? "▲" : "▼"}
                   </button>
+                  <button onClick={() => startEditTask(task)} style={{ background: "none", border: "none", cursor: "pointer", color: "#3b82f6", fontSize: 12, padding: "2px 3px" }} title="Editar Tarefa">✏️</button>
                   <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4b5563", fontSize: 13, padding: "2px 3px" }}>✕</button>
                 </div>
               </div>
@@ -930,6 +1002,7 @@ function TasksModule({ tasks, setTasks, isMobile }) {
                   onAdd={(text) => addSubtask(task.id, text)}
                   onToggle={(sid) => toggleSubtask(task.id, sid)}
                   onDelete={(sid) => delSubtask(task.id, sid)}
+                  onEditSub={(sid, txt) => editSubtask(task.id, sid, txt)}
                   onUpdateNotes={updateTaskNotes} />
               )}
             </div>
@@ -1568,7 +1641,7 @@ function TimeclockModule({ timesheet, setTimesheet, isMobile }) {
                </div>
                
                <button onClick={() => setShowAbsenceForm(!showAbsenceForm)} style={{ ...C.btn(showAbsenceForm ? "#1e2130" : "#a855f7"), padding: "6px 12px", fontSize: 11 }}>
-                  ✈️ Planejar Ausência
+                 ✈️ Planejar Ausência
                </button>
            </div>
         </div>
